@@ -19,16 +19,13 @@
 ADDR_DSPL:
     .word 0x10008000
 
-# The colours being used - red, green, blue in an array
+# The colours being used - red, green, blue, white in an array
 MY_COLOURS:
-    .word 0xff0000
-    .word 0xffa500
-    .word 0xffff00
-    .word 0x008000
-    .word 0x0000ff
-    .word 0x4b0082
-    .word 0xee82ee
-
+    .word 0xff0000 # red
+    .word 0x00ff00 # green
+    .word 0x0000ff # blue
+    .word 0xffffff # white
+    
 # The address of the keyboard. Don't forget to connect it!
 ADDR_KBRD:
     .word 0xffff0000
@@ -61,29 +58,47 @@ BRICK:  # Needs x,y values for now -> "2" pixels wide, indicate the left most pi
 main:
     # Initialize the game
     la $t0, MY_COLOURS
+    lw $t4, 12($t0)  	# $t4 = white
+    lw $t0, 0($t0) 	# $t0 = red
     
     # Knowing where to write (top-left unit): ADR_DSPL
     la $t1, ADDR_DSPL
-    lw $t1, 0($t1)
-    la $t0, MY_COLOURS
-        
-    li $t8, 0
-    three_line_loop:
-        beq $t8, 7, end_draw_line
-        lw $t2,0($t0)
-        addi $t0,$t0, 4
-        add $t8, $t8, 1
-        li $t9, 0
-
-    # Each line is 32 units -> 32 times drawing a line
-    draw_line_loop:
-    	bge $t9, 32, three_line_loop
-    	sw $t2, 0($t1)
-    	addi $t1, $t1, 4
-    	addi $t9, $t9, 1
-    	b draw_line_loop
+    lw $t2, 0($t1) 	#t2 = ADR_DSPL
     
-    end_draw_line:
+    
+    
+    # Initializing the game walls
+    top_wall:
+    	sw  $t4, 0($t2)		# Displaying the pixel
+    	addi $t2, $t2, 4	# Moving the display pixel over by one unit
+    	addi $t5, $t5, 1	# Incrementing the counter
+    	blt $t5, 32, top_wall	# Loop if conditions not met
+    
+    lw $t2, 0($t1) 		# Resetting address display pixel
+    
+    left_wall:
+    	sw  $t4, 0($t2)
+    	addi $t2, $t2, 128
+    	addi $t6, $t6, 1
+    	blt $t6, 32, left_wall
+    
+    lw $t2, 0($t1) 
+    
+    right_wall:	
+    	sw  $t4, 252($t2)
+    	addi $t2, $t2, 128
+    	addi $t7, $t7, 1
+    	blt $t7, 32, right_wall
+
+
+    li $t2, 32
+    li $t3, 0
+    
+ #   li $t8, 0
+    three_line_loop:	# draws three lines
+
+
+
 
 
 game_loop:
