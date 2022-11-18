@@ -22,9 +22,13 @@ ADDR_DSPL:
 # The colours being used - red, green, blue in an array
 MY_COLOURS:
     .word 0xff0000
-    .word 0x00ff00
+    .word 0xffa500
+    .word 0xffff00
+    .word 0x008000
     .word 0x0000ff
-    
+    .word 0x4b0082
+    .word 0xee82ee
+
 # The address of the keyboard. Don't forget to connect it!
 ADDR_KBRD:
     .word 0xffff0000
@@ -57,24 +61,24 @@ BRICK:  # Needs x,y values for now -> "2" pixels wide, indicate the left most pi
 main:
     # Initialize the game
     la $t0, MY_COLOURS
-    lw $t0, 0($t0)
     
     # Knowing where to write (top-left unit): ADR_DSPL
     la $t1, ADDR_DSPL
     lw $t1, 0($t1)
-    
-    li $t2, 32
-    li $t3, 0
-    
+    la $t0, MY_COLOURS
+        
+    li $t8, 0
     three_line_loop:
-        add $t8, $zero, $zero
-        beq $t8, 3, end_draw_line
-    	add $t9, $zero, $zero
+        beq $t8, 7, end_draw_line
+        lw $t2,0($t0)
+        addi $t0,$t0, 4
+        add $t8, $t8, 1
+        li $t9, 0
 
     # Each line is 32 units -> 32 times drawing a line
     draw_line_loop:
     	bge $t9, 32, three_line_loop
-    	sw  $t0, 0($t1)
+    	sw $t2, 0($t1)
     	addi $t1, $t1, 4
     	addi $t9, $t9, 1
     	b draw_line_loop
