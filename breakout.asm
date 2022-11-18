@@ -98,6 +98,7 @@ main:
     three_line_loop:	# draws three lines
 
 
+    end_draw_line:
 
 
 
