@@ -19,11 +19,19 @@
 ADDR_DSPL:
     .word 0x10008000
 
-# The colours being used - red, green, blue in an array
+# The colours being used
 MY_COLOURS:
-    .word 0xff0000
-    .word 0x00ff00
-    .word 0x0000ff
+    
+    .word 0xff0000	# red
+    .word 0x00ff00	# green
+    .word 0xffa500	# orange
+    .word 0xffff00	# yellow
+    .word 0x008000	# dark green
+    .word 0x0000ff	# blue    
+    .word 0x4b0082	# purple
+    .word 0xee82ee	# pink
+    .word 0xffffff	# white
+    .word 0x808080	# gray
     
 # The address of the keyboard. Don't forget to connect it!
 ADDR_KBRD:
@@ -56,30 +64,84 @@ BRICK:  # Needs x,y values for now -> "2" pixels wide, indicate the left most pi
 	# Run the Brick Breaker game.
 main:
     # Initialize the game
-    la $t0, MY_COLOURS
-    lw $t0, 0($t0)
+    la $t0, MY_COLOURS	# $t0 = colour array
     
     # Knowing where to write (top-left unit): ADR_DSPL
     la $t1, ADDR_DSPL
-    lw $t1, 0($t1)
+    lw $t2, 0($t1) 	# $t2 = ADR_DSPL
     
+    
+    
+    # Initializing the game walls
+    lw $t4, 36($t0)    
+    top_wall:
+    	sw  $t4, 0($t2)		# Displaying the pixel
+    	addi $t2, $t2, 4	# Moving the display pixel over by one unit
+    	addi $t5, $t5, 1	# Incrementing the counter
+    	blt $t5, 32, top_wall	# Loop if conditions not met
+    
+    lw $t2, 0($t1) 		# Resetting address display pixel
+    
+    left_wall:
+    	sw  $t4, 0($t2)
+    	addi $t2, $t2, 128	# Moving the display pixel to the next row
+    	addi $t6, $t6, 1
+    	blt $t6, 32, left_wall
+    
+    lw $t2, 0($t1) 
+    
+    right_wall:	
+    	sw  $t4, 252($t2)
+    	addi $t2, $t2, 128	# Moving the display pixel to the next row
+    	addi $t7, $t7, 1
+    	blt $t7, 32, right_wall
+
+
     li $t2, 32
     li $t3, 0
+    li $t8, 0
     
-    three_line_loop:
-        add $t8, $zero, $zero
-        beq $t8, 3, end_draw_line
-    	add $t9, $zero, $zero
-
+    lw $t1, 0($t1)
+    seven_line_loop:	# draws seven lines
+	beq $t8, 7, draw_paddle
+	lw $t2,0($t0)
+        addi $t0,$t0, 4
+	add $t8, $t8, 1
+	li $t9, 0
+	
     # Each line is 32 units -> 32 times drawing a line
-    draw_line_loop:
-    	bge $t9, 32, three_line_loop
-    	sw  $t0, 0($t1)
+    draw_line_loop:	# draws one line
+    	bge $t9, 30, new_line	# 32 total pixels per row - 2 edge walls
+    	sw  $t2, 132($t1)	# 132 - starts drawing at second row second pixel
     	addi $t1, $t1, 4
     	addi $t9, $t9, 1
     	b draw_line_loop
     
-    end_draw_line:
+    new_line: 		# goes to a new line
+	addi $t1, $t1, 8 	# sets display pixel to be second pixel of next line
+	b seven_line_loop
+
+    draw_paddle:
+    	la $t1, ADDR_DSPL
+    	lw $t2, 0($t1)
+    	addi $t2, $t2, 56
+    	
+    draw_paddle_loop:
+    	beq $t3, 5, draw_ball
+    	sw $t4, 3200($t2)
+    	addi $t2, $t2, 4
+    	addi $t3, $t3, 1
+    	b draw_paddle_loop
+    
+    draw_ball:
+    	lw $t4, 4($t0)
+    	addi $t2, $t2, -12
+    	sw $t4, 2944($t2)
+    	
+    
+    	
+    	
+
 
 
 game_loop:
