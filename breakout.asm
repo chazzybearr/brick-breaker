@@ -27,12 +27,11 @@ MY_COLOURS:
     .word 0xffa500	# orange
     .word 0xffff00	# yellow
     .word 0x008000	# dark green
-    .word 0x0000ff	# blue
-    
+    .word 0x0000ff	# blue    
     .word 0x4b0082	# purple
     .word 0xee82ee	# pink
-    
     .word 0xffffff	# white
+    .word 0x808080	# gray
     
 # The address of the keyboard. Don't forget to connect it!
 ADDR_KBRD:
@@ -74,7 +73,7 @@ main:
     
     
     # Initializing the game walls
-    lw $t4, 32($t0)    
+    lw $t4, 36($t0)    
     top_wall:
     	sw  $t4, 0($t2)		# Displaying the pixel
     	addi $t2, $t2, 4	# Moving the display pixel over by one unit
@@ -104,7 +103,7 @@ main:
     
     lw $t1, 0($t1)
     seven_line_loop:	# draws seven lines
-	beq $t8, 7, end_draw_line
+	beq $t8, 7, draw_paddle
 	lw $t2,0($t0)
         addi $t0,$t0, 4
 	add $t8, $t8, 1
@@ -122,7 +121,26 @@ main:
 	addi $t1, $t1, 8 	# sets display pixel to be second pixel of next line
 	b seven_line_loop
 
-    end_draw_line:
+    draw_paddle:
+    	la $t1, ADDR_DSPL
+    	lw $t2, 0($t1)
+    	addi $t2, $t2, 56
+    	
+    draw_paddle_loop:
+    	beq $t3, 5, draw_ball
+    	sw $t4, 3200($t2)
+    	addi $t2, $t2, 4
+    	addi $t3, $t3, 1
+    	b draw_paddle_loop
+    
+    draw_ball:
+    	lw $t4, 4($t0)
+    	addi $t2, $t2, -12
+    	sw $t4, 2944($t2)
+    	
+    
+    	
+    	
 
 
 
