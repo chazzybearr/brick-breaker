@@ -40,8 +40,9 @@ MY_COLOURS:
 ##############################################################################
 # Mutable Data
 ##############################################################################
-BALL: # BALL for x value, BALL + 4 for y value
-	.space 8
+BALL: # BALL for x value, BALL + 4 for y value, BALL  + 8 for direction of ball
+	# Ball direction: 1 = up-right, 2 = up-left, 3 = down-left, 4 = down-right (cntr clk from top-right)
+	.space 12
 PADDLE: # PADDLE for x value, PADDLE + 4 for y value
 	.space 8
 ##############################################################################
@@ -112,9 +113,11 @@ main:
 	
     draw_ball:
     	li $t0, 16	
-    	sw $t0, BALL 		#loads default ball's x-value
+    	sw $t0, BALL 		#loads starting ball's x-value
     	li $t0, 22
-    	sw $t0, BALL + 4 	#loads default ball's y-value
+    	sw $t0, BALL + 4 	#loads starting ball's y-value
+    	li $t0, 1
+    	sw $t0, BALL + 8	#loads starting ball's direction (diagonal up + right)
     	lw $t0, MY_COLOURS + 32
     	lw $a0, BALL 		#function parameter - ball's x-value
     	lw $a1, BALL + 4 	#function parameter - ball's y-value
@@ -123,9 +126,9 @@ main:
     	
     draw_paddle: 		#draws the paddle
     	li $t0, 14	
-    	sw $t0, PADDLE 		#loads default paddle's x-value
+    	sw $t0, PADDLE 		#loads starting paddle's x-value 
     	li $t0, 24
-    	sw $t0, PADDLE + 4 	#loads defalut paddle's y-value
+    	sw $t0, PADDLE + 4 	#loads starting paddle's y-value (constant)
     	lw $t0, MY_COLOURS + 36
     	lw $a0, PADDLE 		#function parameter - paddle's x-value
     	lw $a1, PADDLE + 4 	#function parameter - paddle's y-value
@@ -141,6 +144,10 @@ main:
     
     
 game_loop:
+	#TODO: beq something = 1 (boolean for game-over) --> branch to terminate
+	#check if all rows are black?
+	
+	
 	# 1a. Check if key has been pressed 
     # 1b. Check which key has been pressed
     # 2a. Check for collisions
@@ -149,7 +156,7 @@ game_loop:
 	# 4. Sleep
 
     #5. Go back to 1
-    b game_loop
+   	 b game_loop
 
 # get_location_address(x, y) -> address
 #   Return the address of the unit on the display at location (x,y)
@@ -170,9 +177,75 @@ get_location_address:
 
     	jr $ra
 
-# move_left() -> void
+# ball_mover(int : dir) -> void
+#	moves the ball in the direction given by the parameter (a0)
+#	precondition: dir in {1,2,3,4}
+#	dir corresponds with given directions of the ball
+
+ball_mover:
+	#PROLOGUE - SAVE RA in STACK
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#BODY
+	sw $a0, BALL + 8	#store the new direction of ball
+    	lw $a0, BALL 		#function parameter - ball's x-value
+    	lw $a1, BALL + 4 	#function parameter - ball's y-value
+    	jal get_location_address
+    	lw $t0, MY_COLOURS + 40
+    	sw $t0, ($v0)		#store black in the ball's former location
+    	
+    	lw $t0, BALL + 8	#get the ball's direction, branch depending on the direction (u_l = up-left, etc.)
+    	beq $t0, 2, u_l
+    	beq $t0, 3, d_r
+    	beq $t0, 4, d_l
+    	
+    	u_r:
+    		lw $a0, BALL		#load ball's current position
+    		lw $a1, BALL + 4
+    		addi $a0, $a0, 1	#update ball's current position (x,y) --> (x+1, y-1)
+    		addi $a1, $a1, -1
+    		sw $a0, BALL		#store ball's updated position
+    		sw $a1, BALL + 4
+    		b update_ball
+    	u_l: 
+    		lw $a0, BALL		#load ball's current position
+    		lw $a1, BALL + 4
+    		addi $a0, $a0, -1	#update ball's current position (x,y) --> (x-1, y-1)
+    		addi $a1, $a1, -1
+    		sw $a0, BALL		#store ball's updated position
+    		sw $a1, BALL + 4
+    		b update_ball
+    	d_r: 
+    		lw $a0, BALL		#load ball's current position
+    		lw $a1, BALL + 4
+    		addi $a0, $a0, 1	#update ball's current position (x,y) --> (x+1, y+1)
+    		addi $a1, $a1, 1
+    		sw $a0, BALL		#store ball's updated position
+    		sw $a1, BALL + 4
+    		b update_ball
+    	d_l:				
+    		lw $a0, BALL		#load ball's current position
+    		lw $a1, BALL + 4
+    		addi $a0, $a0, -1	#update ball's current position (x,y) --> (x-1, y+1)
+    		addi $a1, $a1, 1
+    		sw $a0, BALL		#store ball's updated position
+    		sw $a1, BALL + 4
+    		b update_ball
+    	
+    	update_ball:
+    	jal get_location_address
+    	lw $t1, MY_COLOURS + 32	
+    	sw $t1, ($v0)		#store white in the ball's new location
+    	
+    	#EPILOGUE - LOAD RA from STACK
+    	lw $ra, 0($sp)
+    	addi $sp,$sp, 4
+    	jr $ra
+
+# pad_left() -> void
 # 	moves the paddle left by one unit
-move_left:	
+pad_left:	
 
 	#PROLOGUE - SAVE RA in STACK
 	addi $sp, $sp, -4
@@ -183,8 +256,8 @@ move_left:
 	lw $t1, MY_COLOURS + 36
     	lw $a0, PADDLE 		#function parameter - paddle's x-value
     	lw $a1, PADDLE + 4 	#function parameter - paddle's y-value
-    	addi $t2, $a0, -4	
-    	sw $t2, PADDLE + 4	#store y - 4 in paddle's y-value
+    	addi $t2, $a0, -1	
+    	sw $t2, PADDLE		#store x - 1 in paddle's x-value
     	jal get_location_address
     	sw $t1, -4($v0)		#store gray in the new left-est pixel
     	sw $t0, 16($v0)		#store black in the former right-est pixel
@@ -194,10 +267,10 @@ move_left:
     	addi $sp,$sp, 4
     	jr $ra
 
-# move_right() -> void
+# pad_right() -> void
 # 	moves the paddle right by one unit
 
-move_right:	
+pad_right:	
 
 	#PROLOGUE - SAVE RA in STACK
 	addi $sp, $sp, -4
@@ -207,9 +280,9 @@ move_right:
 	lw $t0, MY_COLOURS + 40
 	lw $t1, MY_COLOURS + 36
     	lw $a0, PADDLE 		#function parameter - paddle's x-value
-    	lw $a1, PADDLE + 4 	#function parameter - paddle's y-value
-    	addi $t2, $a0, 4
-    	sw $t2, PADDLE + 4	#store y + 4 in paddle's y-value
+    	lw $a1, PADDLE + 4	#function parameter - paddle's y-value
+    	addi $t2, $a0, 1
+    	sw $t2, PADDLE		#store x + 1 in paddle's x-value
     	jal get_location_address
     	sw $t0, ($v0)		#store black in the former left-est pixel
     	sw $t1, 20($v0)		#store gray in the new right-est pixel
@@ -218,3 +291,5 @@ move_right:
     	lw $ra, 0($sp)
     	addi $sp,$sp, 4
     	jr $ra
+    	
+terminate:
