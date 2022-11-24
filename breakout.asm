@@ -18,10 +18,13 @@
 # The address of the bitmap display. Don't forget to connect it!
 ADDR_DSPL:
     .word 0x10008000
+    
+# The address of the keyboard. Don't forget to connect it!
+ADDR_KBRD:
+    .word 0xffff0000
 
 # The colours being used
 MY_COLOURS:
-    
     .word 0xff0000	# red
     .word 0x00ff00	# green
     .word 0xffa500	# orange
@@ -32,28 +35,13 @@ MY_COLOURS:
     .word 0xee82ee	# pink
     .word 0xffffff	# white
     .word 0x808080	# gray
-    
-# The address of the keyboard. Don't forget to connect it!
-ADDR_KBRD:
-    .word 0xffff0000
-
 
 ##############################################################################
 # Mutable Data
 ##############################################################################
-BALL: # Needs x,y values for now (x,y values should be more than bottom wall, between two right/left walls)
+BALL: # BALL for x value, BALL + 4 for y value
 	.space 8
-PADDLE: # Needs x,y values for now -> "4" pixels wide, indicate the left most pixel 
-	#(x,y values should be more than bottom wall, between two right/left walls)
-	.space 8
-LEFT_WALL: # Needs x value, draw from bottom to top (all y-values)
-	.space 4
-BOTTOM_WALL: # Needs y value, draw from left to right (all x-values)
-	.space 4
-RIGHT_WALL: # Needs x value, draw from bottom to top (all y-values)
-	.space 4
-BRICK:  # Needs x,y values for now -> "2" pixels wide, indicate the left most pixel 
-	#(x,y values should be more than bottom wall, between two right/left walls)
+PADDLE: # PADDLE for x value, PADDLE + 4 for y value
 	.space 8
 ##############################################################################
 # Code
@@ -63,9 +51,6 @@ BRICK:  # Needs x,y values for now -> "2" pixels wide, indicate the left most pi
 
 	# Run the Brick Breaker game.
 main:
-    # Initialize the game
-    la $t0, MY_COLOURS	# $t0 = colour array
-    
     # Knowing where to write (top-left unit): ADR_DSPL
     la $t1, ADDR_DSPL
     lw $t2, 0($t1) 	# $t2 = ADR_DSPL
@@ -73,8 +58,9 @@ main:
     
     
     # Initializing the game walls
-    lw $t4, 36($t0)    
-    top_wall:
+    lw $t4, MY_COLOURS + 36  
+ 
+     top_wall:
     	sw  $t4, 0($t2)		# Displaying the pixel
     	addi $t2, $t2, 4	# Moving the display pixel over by one unit
     	addi $t5, $t5, 1	# Incrementing the counter
@@ -97,11 +83,13 @@ main:
     	blt $t7, 32, right_wall
 
 
+
     li $t2, 32
     li $t3, 0
     li $t8, 0
     
     lw $t1, 0($t1)
+    la $t0, MY_COLOURS
     seven_line_loop:	# draws seven lines
 	beq $t8, 7, draw_paddle
 	lw $t2,0($t0)
@@ -120,30 +108,37 @@ main:
     new_line: 		# goes to a new line
 	addi $t1, $t1, 8 	# sets display pixel to be second pixel of next line
 	b seven_line_loop
-
-    draw_paddle:
-    	la $t1, ADDR_DSPL
-    	lw $t2, 0($t1)
-    	addi $t2, $t2, 56
-    	
+	
+    
+    draw_paddle: 		#draws the paddle
+    	li $t0, 14	
+    	sw $t0, PADDLE 		#loads default paddle's x-value
+    	li $t0, 24
+    	sw $t0, PADDLE + 4 	#loads defalut paddle's y-value
+    	lw $t0, MY_COLOURS + 36
+    	lw $a0, PADDLE 		#function parameter - paddle's x-value
+    	lw $a1, PADDLE + 4 	#function parameter - paddle's y-value
+    	jal get_location_address
+    	sw $t0, ($v0)		#store gray colour in address returned by function
+    
     draw_paddle_loop:
-    	beq $t3, 5, draw_ball
-    	sw $t4, 3200($t2)
-    	addi $t2, $t2, 4
-    	addi $t3, $t3, 1
+    	beq $t3, 4, draw_ball
+    	addi $v0, $v0, 4	#given address is the leftest pixel of the paddle, add 4 to move right
+    	sw $t0, ($v0)		#store gray
+    	addi $t3, $t3, 1	#loop 4 times (for paddle of length 4)
     	b draw_paddle_loop
     
     draw_ball:
-    	lw $t4, 4($t0)
-    	addi $t2, $t2, -12
-    	sw $t4, 2944($t2)
-    	
+    	li $t0, 16	
+    	sw $t0, BALL 		#loads default ball's x-value
+    	li $t0, 22
+    	sw $t0, BALL + 4 	#loads default ball's y-value
+    	lw $t0, MY_COLOURS + 32
+    	lw $a0, BALL 		#function parameter - ball's x-value
+    	lw $a1, BALL + 4 	#function parameter - ball's y-value
+    	jal get_location_address
+    	sw $t0, ($v0)		#store white colour in address returned by function (the ball)
     
-    	
-    	
-
-
-
 game_loop:
 	# 1a. Check if key has been pressed 
     # 1b. Check which key has been pressed
@@ -153,4 +148,17 @@ game_loop:
 	# 4. Sleep
 
     #5. Go back to 1
-    # b game_loop
+    b game_loop
+    
+get_location_address:
+    # Each unit is 4 bytes. Each row has 32 units (128 bytes)
+	sll 	$a0, $a0, 2		# x = x * 4
+	sll 	$a1, $a1, 7             # y = y * 128
+
+    # Calculate return value
+	la 	$v0, ADDR_DSPL 		# res = address of ADDR_DSPL
+    	lw      $v0, 0($v0)             # res = address of (0, 0)
+	add 	$v0, $v0, $a0			# res = address of (x, 0)
+	add 	$v0, $v0, $a1           # res = address of (x, y)
+
+    jr $ra
