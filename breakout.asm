@@ -35,6 +35,7 @@ MY_COLOURS:
     .word 0xee82ee	# pink
     .word 0xffffff	# white
     .word 0x808080	# gray
+    .word 0x000000	# black (eraser)
 
 ##############################################################################
 # Mutable Data
@@ -109,7 +110,17 @@ main:
 	addi $t1, $t1, 8 	# sets display pixel to be second pixel of next line
 	b seven_line_loop
 	
-    
+    draw_ball:
+    	li $t0, 16	
+    	sw $t0, BALL 		#loads default ball's x-value
+    	li $t0, 22
+    	sw $t0, BALL + 4 	#loads default ball's y-value
+    	lw $t0, MY_COLOURS + 32
+    	lw $a0, BALL 		#function parameter - ball's x-value
+    	lw $a1, BALL + 4 	#function parameter - ball's y-value
+    	jal get_location_address
+    	sw $t0, ($v0)		#store white colour in address returned by function (the ball)
+    	
     draw_paddle: 		#draws the paddle
     	li $t0, 14	
     	sw $t0, PADDLE 		#loads default paddle's x-value
@@ -128,16 +139,6 @@ main:
     	addi $t3, $t3, 1	#loop 4 times (for paddle of length 4)
     	b draw_paddle_loop
     
-    draw_ball:
-    	li $t0, 16	
-    	sw $t0, BALL 		#loads default ball's x-value
-    	li $t0, 22
-    	sw $t0, BALL + 4 	#loads default ball's y-value
-    	lw $t0, MY_COLOURS + 32
-    	lw $a0, BALL 		#function parameter - ball's x-value
-    	lw $a1, BALL + 4 	#function parameter - ball's y-value
-    	jal get_location_address
-    	sw $t0, ($v0)		#store white colour in address returned by function (the ball)
     
 game_loop:
 	# 1a. Check if key has been pressed 
@@ -149,7 +150,13 @@ game_loop:
 
     #5. Go back to 1
     b game_loop
-    
+
+# get_location_address(x, y) -> address
+#   Return the address of the unit on the display at location (x,y)
+#
+#   Preconditions:
+#       - x is between 0 and 31, inclusive
+#       - y is between 0 and 31, inclusive   
 get_location_address:
     # Each unit is 4 bytes. Each row has 32 units (128 bytes)
 	sll 	$a0, $a0, 2		# x = x * 4
@@ -158,7 +165,56 @@ get_location_address:
     # Calculate return value
 	la 	$v0, ADDR_DSPL 		# res = address of ADDR_DSPL
     	lw      $v0, 0($v0)             # res = address of (0, 0)
-	add 	$v0, $v0, $a0			# res = address of (x, 0)
+	add 	$v0, $v0, $a0		# res = address of (x, 0)
 	add 	$v0, $v0, $a1           # res = address of (x, y)
 
-    jr $ra
+    	jr $ra
+
+# move_left() -> void
+# 	moves the paddle left by one unit
+move_left:	
+
+	#PROLOGUE - SAVE RA in STACK
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#BODY
+	lw $t0, MY_COLOURS + 40
+	lw $t1, MY_COLOURS + 36
+    	lw $a0, PADDLE 		#function parameter - paddle's x-value
+    	lw $a1, PADDLE + 4 	#function parameter - paddle's y-value
+    	addi $t2, $a0, -4	
+    	sw $t2, PADDLE + 4	#store y - 4 in paddle's y-value
+    	jal get_location_address
+    	sw $t1, -4($v0)		#store gray in the new left-est pixel
+    	sw $t0, 16($v0)		#store black in the former right-est pixel
+    	
+    	#EPILOGUE - LOAD RA from STACK
+    	lw $ra, 0($sp)
+    	addi $sp,$sp, 4
+    	jr $ra
+
+# move_right() -> void
+# 	moves the paddle right by one unit
+
+move_right:	
+
+	#PROLOGUE - SAVE RA in STACK
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#BODY
+	lw $t0, MY_COLOURS + 40
+	lw $t1, MY_COLOURS + 36
+    	lw $a0, PADDLE 		#function parameter - paddle's x-value
+    	lw $a1, PADDLE + 4 	#function parameter - paddle's y-value
+    	addi $t2, $a0, 4
+    	sw $t2, PADDLE + 4	#store y + 4 in paddle's y-value
+    	jal get_location_address
+    	sw $t0, ($v0)		#store black in the former left-est pixel
+    	sw $t1, 20($v0)		#store gray in the new right-est pixel
+    	
+    	#EPILOGUE - LOAD RA from STACK
+    	lw $ra, 0($sp)
+    	addi $sp,$sp, 4
+    	jr $ra
