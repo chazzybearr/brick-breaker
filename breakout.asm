@@ -129,7 +129,6 @@ game_loop:
 	jal too_late
 	beq $v0, 1, terminate
 	
-	
 	# 1a. Check if key has been pressed 
     # 1b. Check which key has been pressed
     # 2a. Check for collisions
@@ -161,6 +160,8 @@ get_location_address:
 
     	jr $ra
 
+# draw_ball() -> void
+#	draws the ball on the screen
 draw_ball:
 	#PROLOGUE - SAVE RA in STACK
 	addi $sp, $sp, -4
@@ -175,7 +176,9 @@ draw_ball:
 	#EPILOGUE - LOAD RA from STACK
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
-	
+
+# draw_paddle() -> void
+#	draws the paddle on the screen	
 draw_paddle:
 	#PROLOGUE - SAVE RA in STACK
 	addi $sp, $sp, -4
@@ -198,6 +201,7 @@ draw_paddle:
     	draw_paddle_epi:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4	
+
 # too_late() -> boolean
 # 	return 1 if the ball is below the paddle - 0 if not.
 too_late:
@@ -211,8 +215,37 @@ too_late:
 	late_epilogue:
 	jr $ra
 
+# paddle_collision() -> boolean
+#	return 1 if ball will collide with the paddle. 0 if not.
+paddle_collision:
+	li $v0, 1 # Assume it collides
+	lw $t0, BALL + 8
+	lw $t1, BALL + 4
+	lw $t2, PADDLE + 4 	# Load y-values of both paddle and ball and the ball's direction
+	sub $t3, $t2, $t1 	# Get the vertical distance between ball/paddle
+	blt $t0, 3, no_collision # If the ball is going up, no paddle collision
+	bgt $t3, 1, no_collision # If the vertical distance is greater than 2, no collision
+	lw $t1, BALL 
+	lw $t2, PADDLE 
+	sub $t3, $t2, $t1 # Load x-values, get horizontal distance
+	blt $t3, -1, no_collision
+	bgt $t3, 5, no_collision  # If horizontal distance is > 5 or  < -1, no collision occurs
+	beq $t0, 3, l_coll
+	beq $t0, 4, r_coll # Type of collision - from left/right side depending on ball's direction
+	l_coll:
+		ble $t3, 0, no_collide # If direction is towards left, and distance is <= 0, no collision. Else collision.
+		b paddle_coll_epi
+	r_coll:
+		bge $t3, 4, no_collide # Same idea
+		b paddle_coll_epi
+	no_collide:
+		li $v0, 0
+	paddle_coll_epi:
+	jr $ra
+	
 # wall_collision() -> int
-#	return a value based on the "type" of collision with the wall
+#	return a value based on the collision with the type of wall
+#	this value predicts if a collision will happen AFTER moving - in the next TURN
 #	corner collision: return 4
 # 	left-wall collision: return 3
 #	right-wall collision: return 2
