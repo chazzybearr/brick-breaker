@@ -93,7 +93,7 @@ main:
     lw $t1, 0($t1)
     la $t0, MY_COLOURS
     seven_line_loop:	# draws seven lines
-	beq $t8, 7, draw_paddle
+	beq $t8, 7, setup_ball
 	lw $t2,0($t0)
         addi $t0,$t0, 4
 	add $t8, $t8, 1
@@ -111,41 +111,23 @@ main:
 	addi $t1, $t1, 8 	# sets display pixel to be second pixel of next line
 	b seven_line_loop
 	
-    draw_ball:
+    setup_ball:
     	li $t0, 16	
     	sw $t0, BALL 		#loads starting ball's x-value
     	li $t0, 22
     	sw $t0, BALL + 4 	#loads starting ball's y-value
     	li $t0, 1
     	sw $t0, BALL + 8	#loads starting ball's direction (diagonal up + right)
-    	lw $t0, MY_COLOURS + 32
-    	lw $a0, BALL 		#function parameter - ball's x-value
-    	lw $a1, BALL + 4 	#function parameter - ball's y-value
-    	jal get_location_address
-    	sw $t0, ($v0)		#store white colour in address returned by function (the ball)
     	
-    draw_paddle: 		#draws the paddle
+    setup_paddle: 		#draws the paddle
     	li $t0, 14	
     	sw $t0, PADDLE 		#loads starting paddle's x-value 
     	li $t0, 24
     	sw $t0, PADDLE + 4 	#loads starting paddle's y-value (constant)
-    	lw $t0, MY_COLOURS + 36
-    	lw $a0, PADDLE 		#function parameter - paddle's x-value
-    	lw $a1, PADDLE + 4 	#function parameter - paddle's y-value
-    	jal get_location_address
-    	sw $t0, ($v0)		#store gray colour in address returned by function
-    
-    draw_paddle_loop:
-    	beq $t3, 4, draw_ball
-    	addi $v0, $v0, 4	#given address is the leftest pixel of the paddle, add 4 to move right
-    	sw $t0, ($v0)		#store gray
-    	addi $t3, $t3, 1	#loop 4 times (for paddle of length 4)
-    	b draw_paddle_loop
-    
-    
+    	
 game_loop:
-	#TODO: beq something = 1 (boolean for game-over) --> branch to terminate
-	#check if all rows are black?
+	jal too_late
+	beq $v0, 1, terminate
 	
 	
 	# 1a. Check if key has been pressed 
@@ -153,6 +135,8 @@ game_loop:
     # 2a. Check for collisions
 	# 2b. Update locations (paddle, ball)
 	# 3. Draw the screen
+	jal draw_ball
+	jal draw_paddle
 	# 4. Sleep
 
     #5. Go back to 1
@@ -177,6 +161,116 @@ get_location_address:
 
     	jr $ra
 
+draw_ball:
+	#PROLOGUE - SAVE RA in STACK
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+    	lw $a0, BALL 		#function parameter - ball's x-value
+    	lw $a1, BALL + 4 	#function parameter - ball's y-value
+    	jal get_location_address
+    	lw $t0, MY_COLOURS + 32
+    	sw $t0, ($v0)		#store white in address returned by function (the ball)
+	
+	#EPILOGUE - LOAD RA from STACK
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+draw_paddle:
+	#PROLOGUE - SAVE RA in STACK
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+    	lw $a0, PADDLE 		#function parameter - paddle's x-value
+    	lw $a1, PADDLE + 4 	#function parameter - paddle's y-value
+    	jal get_location_address
+    	lw $t0, MY_COLOURS + 36
+    	sw $t0, ($v0)		#store gray in address returned by function
+    	
+    	draw_paddle_loop:
+    		beq $t3, 4, draw_paddle_epi
+    		addi $v0, $v0, 4	#given address is the leftest pixel of the paddle, add 4 to move right
+    		sw $t0, ($v0)		#store gray
+    		addi $t3, $t3, 1	#loop 4 times (for paddle of length 4)
+    		b draw_paddle_loop
+    		
+    	#EPILOGUE - LOAD RA from STACK
+    	draw_paddle_epi:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4	
+# too_late() -> boolean
+# 	return 1 if the ball is below the paddle - 0 if not.
+too_late:
+	lw $t0, BALL + 4
+	lw $t1, PADDLE + 4
+	ble $t0, $t1, not_late 		# The "if-statement", branch accordingly and update return register
+	li $v0, 1
+	b late_epilogue
+	not_late:
+	li $v0, 0
+	late_epilogue:
+	jr $ra
+
+# wall_collision() -> int
+#	return a value based on the "type" of collision with the wall
+#	corner collision: return 4
+# 	left-wall collision: return 3
+#	right-wall collision: return 2
+#	top-wall collision: return 1
+#	no collision: return 0
+wall_collision:
+	
+	lw $t0, BALL 				# Load the values of the ball - its position (x,y) and its direction
+	lw $t1, BALL + 4
+	lw $t2, BALL + 8
+	
+	top_collide:
+		beq $t2, 3, left_collide 		# If the ball is going down, then it won't collide with the top wall
+		beq $t2, 4, right_collide
+		
+		li $v0, 1 			# Add 1 to the ball's y-value, assume it hits the top wall.
+		addi $t1, $t1, 1
+		
+		beq $t1, 0, corner_collide 	# If ball is hitting the top wall, then check for corner collisions. 
+		beq $t2, 1, right_collide 		# Else, check for right/left walls (will update return value)
+		beq $t2, 2, left_collide
+	
+	corner_collide:
+		beq $t2, 1, r_corner		# Different corners depending on the direction of the ball
+		beq $t2, 2, l_corner
+		
+		r_corner:			# Check if it collides with the right wall. If it does, update the return value to 4.
+			addi $t0, $t0, 1	
+			blt $t0, 32, collide_epilogue
+			b collides
+		
+		l_corner:			# Check if it collides with the left wall. If it does, update the return value to 4.
+			addi $t0, $t0, -1
+			bgt $t0, 0, collide_epilogue
+			b collides
+		
+		collides:			# Update return value to 4.
+			li $v0, 4
+			b collide_epilogue
+			
+	left_collide:			# Check if it collides with the left wall. If not, then no collision has occured.
+		li $v0, 3		# If yes, then update return value. Same idea for right_wall.		
+		addi $t0, $t0, -1
+		bgt $t0, 0, no_collision
+		b collide_epilogue
+	
+	right_collide:
+		li $v0, 2
+		addi $t0, $t0, 1
+		blt $t0, 32, no_collision
+		b collide_epilogue
+	
+	no_collision:
+		li $v0, 0
+		
+	collide_epilogue:
+	jr $ra
+	
 # ball_mover(int : dir) -> void
 #	moves the ball in the direction given by the parameter (a0)
 #	precondition: dir in {1,2,3,4}
