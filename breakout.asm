@@ -1,8 +1,8 @@
 ################ CSC258H1F Fall 2022 Assembly Final Project ##################
 # This file contains our implementation of Breakout.
 #
-# Student 1: Name, Student Number
-# Student 2: Name, Student Number
+# Student 1: Mani Setayesh, 1008078367
+# Student 2: Leon Cai, Student Number
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       8
 # - Unit height in pixels:      8
