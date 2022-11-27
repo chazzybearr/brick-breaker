@@ -127,19 +127,42 @@ main:
     	
 game_loop:
 	jal too_late
-	beq $v0, 1, terminate
+	beq $v0, 1, terminate # terminates the loop - before the setting of the loop variables
 	
+	# setting up loop variables - useful to keep track of things within each loop between function calls
+	addi $sp, $sp, -20
+	sw $s0, 16($sp)
+	sw $s1, 12($sp)
+	sw $s2, 8($sp)
+	sw $s3, 4($sp)
+	sw $s4, 0($sp)
+
 	# 1a. Check if key has been pressed 
     # 1b. Check which key has been pressed
-    # 2a. Check for collisions
-	# 2b. Update locations (paddle, ball)
+    # 2a. Check for collisions 	
+    	jal paddle_collision
+    	addi $s0, $v0, 0
+    	jal wall_collision
+    	addi $s1, $v0, 0
+    	addi $a0, $s0, 0
+    	addi $a1, $s1, 0
+    	jal new_dir
+	
+	sw $v0, BALL + 8
+	jal ball_mover
+	
 	# 3. Draw the screen
-	jal draw_ball
 	jal draw_paddle
 	# 4. Sleep
 
     #5. Go back to 1
-   	 b game_loop
+    	lw $s4, 0($sp)
+    	lw $s3, 4($sp)
+	lw $s2, 8($sp)
+	lw $s0, 12($sp)
+	lw $s1, 16($sp)
+	addi $sp, $sp, 20
+   	b game_loop
 
 # get_location_address(x, y) -> address
 #   Return the address of the unit on the display at location (x,y)
@@ -189,7 +212,7 @@ draw_paddle:
     	jal get_location_address
     	lw $t0, MY_COLOURS + 36
     	sw $t0, ($v0)		#store gray in address returned by function
-    	
+    	li $t3, 0
     	draw_paddle_loop:
     		beq $t3, 4, draw_paddle_epi
     		addi $v0, $v0, 4	#given address is the leftest pixel of the paddle, add 4 to move right
@@ -303,11 +326,59 @@ wall_collision:
 		
 	collide_epilogue:
 	jr $ra
-	
-# ball_mover(int : dir) -> void
-#	moves the ball in the direction given by the parameter (a0)
-#	precondition: dir in {1,2,3,4}
-#	dir corresponds with given directions of the ball
+
+# new_dir(hit_pad, hit_wall) -> new_dir
+#	takes in whether the ball had any collisions, and provides a new direction based on the collision
+
+new_dir:
+	lw $t0, BALL + 8
+    	beq $a0, 1, hit_paddle
+    	bgtz $a1, hit_wall
+    	#TODO: implement a hit_brick (function that checks if the ball hit a brick, then updates things)
+    	b new_dir_epi
+	hit_paddle:
+		beq $t0, 4, l_to_r
+		li $t0, 2
+		sw $t0, BALL + 8
+		b hit_wall
+		l_to_r:
+			li $t0, 1
+			sw $t0, BALL + 8
+	hit_wall:
+		beq $a1, 0, new_dir_epi
+		beq $a1, 2, right_side
+		beq $a1, 3, left_side
+		beq $a1, 4, t_corner
+		beq $t0, 1, top_l2r
+		
+		li $t0, 3
+		b new_dir_epi
+		top_l2r:
+			li $t0, 4
+			b new_dir_epi
+		right_side:
+			beq $t0, 4, right_td
+			li $t0, 2
+			b new_dir_epi
+			right_td: li $t0, 3
+			b new_dir_epi
+		left_side:
+			beq $t0, 3, left_td
+			li $t0, 1
+			b new_dir_epi
+			left_td: li $t0, 4
+			b new_dir_epi
+		t_corner:
+			beq $t0, 2, l_corn 
+			li $t0, 3
+			b new_dir_epi
+			l_corn: li $t0, 4
+			b new_dir_epi
+	new_dir_epi:
+		addi $v0, $t0, 0
+		jr $ra
+# ball_mover() -> void
+#	moves the ball in the direction stored in the ball
 
 ball_mover:
 	#PROLOGUE - SAVE RA in STACK
@@ -315,7 +386,6 @@ ball_mover:
 	sw $ra, 0($sp)
 	
 	#BODY
-	sw $a0, BALL + 8	#store the new direction of ball
     	lw $a0, BALL 		#function parameter - ball's x-value
     	lw $a1, BALL + 4 	#function parameter - ball's y-value
     	jal get_location_address
@@ -324,8 +394,9 @@ ball_mover:
     	
     	lw $t0, BALL + 8	#get the ball's direction, branch depending on the direction (u_l = up-left, etc.)
     	beq $t0, 2, u_l
-    	beq $t0, 3, d_r
-    	beq $t0, 4, d_l
+    	beq $t0, 3, d_l
+    	beq $t0, 4, d_r
+    	
     	
     	u_r:
     		lw $a0, BALL		#load ball's current position
@@ -343,18 +414,18 @@ ball_mover:
     		sw $a0, BALL		#store ball's updated position
     		sw $a1, BALL + 4
     		b update_ball
-    	d_r: 
-    		lw $a0, BALL		#load ball's current position
-    		lw $a1, BALL + 4
-    		addi $a0, $a0, 1	#update ball's current position (x,y) --> (x+1, y+1)
-    		addi $a1, $a1, 1
-    		sw $a0, BALL		#store ball's updated position
-    		sw $a1, BALL + 4
-    		b update_ball
     	d_l:				
     		lw $a0, BALL		#load ball's current position
     		lw $a1, BALL + 4
     		addi $a0, $a0, -1	#update ball's current position (x,y) --> (x-1, y+1)
+    		addi $a1, $a1, 1
+    		sw $a0, BALL		#store ball's updated position
+    		sw $a1, BALL + 4
+    		b update_ball
+    	d_r: 
+    		lw $a0, BALL		#load ball's current position
+    		lw $a1, BALL + 4
+    		addi $a0, $a0, 1	#update ball's current position (x,y) --> (x+1, y+1)
     		addi $a1, $a1, 1
     		sw $a0, BALL		#store ball's updated position
     		sw $a1, BALL + 4
