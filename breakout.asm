@@ -285,7 +285,7 @@ wall_collision:
 		beq $t2, 4, right_collide
 		
 		li $v0, 1 			# Add 1 to the ball's y-value, assume it hits the top wall.
-		addi $t1, $t1, 1
+		addi $t1, $t1, -1
 		
 		beq $t1, 0, corner_collide 	# If ball is hitting the top wall, then check for corner collisions. 
 		beq $t2, 1, right_collide 		# Else, check for right/left walls (will update return value)
@@ -296,12 +296,12 @@ wall_collision:
 		beq $t2, 2, l_corner
 		
 		r_corner:			# Check if it collides with the right wall. If it does, update the return value to 4.
-			addi $t0, $t0, 1	
+			addi $t0, $t0, 2	
 			blt $t0, 32, collide_epilogue
 			b collides
 		
 		l_corner:			# Check if it collides with the left wall. If it does, update the return value to 4.
-			addi $t0, $t0, -1
+			addi $t0, $t0, -2
 			bgt $t0, 0, collide_epilogue
 			b collides
 		
@@ -311,13 +311,13 @@ wall_collision:
 			
 	left_collide:			# Check if it collides with the left wall. If not, then no collision has occured.
 		li $v0, 3		# If yes, then update return value. Same idea for right_wall.		
-		addi $t0, $t0, -1
+		addi $t0, $t0, -2
 		bgt $t0, 0, no_collision
 		b collide_epilogue
 	
 	right_collide:
 		li $v0, 2
-		addi $t0, $t0, 1
+		addi $t0, $t0, 2
 		blt $t0, 32, no_collision
 		b collide_epilogue
 	
