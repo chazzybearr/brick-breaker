@@ -146,9 +146,18 @@ game_loop:
 	keyboard_input:
     	# 1b. Check which key has been pressed
     	lw $a0, 4($t0)                  # Load second word from keyboard
-    	beq $a0, 0x61, pad_left  	# Check if the key q was pressed
-    	beq $a0, 0x64, pad_right
+    	beq $a0, 0x61, m_left
+    	beq $a0, 0x64, m_right
+    	b collisions
+    	m_left: 
+    		jal pad_left
+    		b collisions
+    	m_right:
+    		jal pad_right
+    		b collisions
     	
+    	li $s0, 0
+    	li $s1, 0
     	collisions: 
     	# 2a. Check for collisions 	
     	jal paddle_collision
@@ -265,15 +274,15 @@ paddle_collision:
 	lw $t1, BALL 
 	lw $t2, PADDLE 
 	sub $t3, $t2, $t1 # Load x-values, get horizontal distance
-	blt $t3, -1, no_collision
-	bgt $t3, 5, no_collision  # If horizontal distance is > 5 or  < -1, no collision occurs
+	blt $t3, -5, no_collision
+	bgt $t3, 0, no_collision  # If horizontal distance is > 5 or  < -1, no collision occurs
 	beq $t0, 3, l_coll
 	beq $t0, 4, r_coll # Type of collision - from left/right side depending on ball's direction
 	l_coll:
-		ble $t3, 0, no_collide # If direction is towards left, and distance is <= 0, no collision. Else collision.
+		bgt $t3, 0, no_collide # If direction is towards left, and distance is < 0, no collision. Else collision.
 		b paddle_coll_epi
 	r_coll:
-		bge $t3, 4, no_collide # Same idea
+		blt $t3, -4, no_collide # Same idea
 		b paddle_coll_epi
 	no_collide:
 		li $v0, 0
@@ -326,7 +335,7 @@ wall_collision:
 	left_collide:			# Check if it collides with the left wall. If not, then no collision has occured.
 		li $v0, 3		# If yes, then update return value. Same idea for right_wall.		
 		addi $t0, $t0, -2
-		bgt $t0, 0, no_collision
+		bgt $t0, -1, no_collision
 		b collide_epilogue
 	
 	right_collide:
@@ -354,7 +363,7 @@ new_dir:
 		beq $t0, 4, l_to_r
 		li $t0, 2
 		sw $t0, BALL + 8
-		b hit_wall
+		b new_dir_epi
 		l_to_r:
 			li $t0, 1
 			sw $t0, BALL + 8
