@@ -138,8 +138,19 @@ game_loop:
 	sw $s4, 0($sp)
 
 	# 1a. Check if key has been pressed 
-    # 1b. Check which key has been pressed
-    # 2a. Check for collisions 	
+	lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
+  	lw $t8, 0($t0)                  # Load first word from keyboard
+    	beq $t8, 1, keyboard_input      # If first word 1, key is pressed
+	b collisions
+	
+	keyboard_input:
+    	# 1b. Check which key has been pressed
+    	lw $a0, 4($t0)                  # Load second word from keyboard
+    	beq $a0, 0x61, pad_left  	# Check if the key q was pressed
+    	beq $a0, 0x64, pad_right
+    	
+    	collisions: 
+    	# 2a. Check for collisions 	
     	jal paddle_collision
     	addi $s0, $v0, 0
     	jal wall_collision
@@ -154,6 +165,9 @@ game_loop:
 	# 3. Draw the screen
 	jal draw_paddle
 	# 4. Sleep
+	li $v0, 32
+	li $a0, 100 
+	syscall
 
     #5. Go back to 1
     	lw $s4, 0($sp)
@@ -491,3 +505,5 @@ pad_right:
     	jr $ra
     	
 terminate:
+	li $v0, 10 # terminate the program gracefully 
+	syscall
