@@ -148,6 +148,7 @@ game_loop:
     	lw $a0, 4($t0)                  # Load second word from keyboard
     	beq $a0, 0x61, m_left
     	beq $a0, 0x64, m_right
+    	beq $a0, 0x71, terminate
     	b collisions
     	m_left: 
     		jal pad_left
