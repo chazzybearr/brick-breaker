@@ -156,19 +156,25 @@ game_loop:
     	m_right:
     		jal pad_right
     		b collisions
-    	
+
+    	collisions: 
     	li $s0, 0
     	li $s1, 0
-    	collisions: 
+    	li $s2, 0
     	# 2a. Check for collisions 	
     	jal paddle_collision
     	addi $s0, $v0, 0
     	jal wall_collision
     	addi $s1, $v0, 0
+    	jal brick_collision
+    	addi $s2, $v0, 0
+    	addi $a0, $s2, 0
+    	jal brick_destroyer
+    	
     	addi $a0, $s0, 0
     	addi $a1, $s1, 0
+    	addi $a2, $s2, 0
     	jal new_dir
-	
 	sw $v0, BALL + 8
 	jal ball_mover
 	
@@ -351,6 +357,93 @@ wall_collision:
 	collide_epilogue:
 	jr $ra
 
+next_ball_loc:
+	lw $t0, BALL + 8
+	beq $t0, 2, u_l
+	beq $t0, 3, d_l
+	beq $t0, 4, d_r
+	u_r:
+    		lw $v0, BALL		#load ball's current position
+    		lw $v1, BALL + 4
+    		addi $v0, $v0, 1	#update ball's current position (x,y) --> (x+1, y-1)
+    		addi $v1, $v1, -1
+    		b next_loc_epi
+    	u_l: 
+    		lw $v0, BALL		#load ball's current position
+    		lw $v1, BALL + 4
+    		addi $v0, $v0, -1	#update ball's current position (x,y) --> (x-1, y-1)
+    		addi $v1, $v1, -1
+      		b next_loc_epi
+    	d_l:				
+    		lw $v0, BALL		#load ball's current position
+    		lw $v1, BALL + 4
+    		addi $v0, $v0, -1	#update ball's current position (x,y) --> (x-1, y+1)
+    		addi $v1, $v1, 1
+    		b next_loc_epi
+    	d_r: 
+    		lw $v0, BALL		#load ball's current position
+    		lw $v1, BALL + 4
+    		addi $v0, $v0, 1	#update ball's current position (x,y) --> (x+1, y+1)
+    		addi $v1, $v1, 1
+    	
+    	next_loc_epi:
+    	jr $ra,
+
+brick_destroyer:
+	addi $sp,$sp, -12
+	sw $s1, 8($sp)
+	sw $s0, 4($sp)
+	sw $ra, 0($sp)
+	beq $a0, 0, destroyer_epi
+	jal next_ball_loc
+	addi $s0, $v0, 0 # x-value
+	addi $s1, $v1, 0 # y-value
+	addi $a0, $v0, 0 # x-value
+	addi $a1, $v1, 0 # y-value
+	jal get_location_address
+	lw $t0, MY_COLOURS + 40
+	sw $t0, ($v0)
+	and $t0, $s1, 1
+	beq $t0, 1, odd_line
+	b even_line
+	odd_line:
+		addi $v0, $v0, 4
+		lw $t0, MY_COLOURS + 40
+		sw $t0, ($v0)
+		b destroyer_epi
+	even_line:
+		addi $v0, $v0, -4
+		lw $t0, MY_COLOURS + 40
+		sw $t0, ($v0)
+	destroyer_epi:
+	lw $ra, 0($sp)
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	addi $sp,$sp,12
+	jr $ra
+	
+brick_collision:
+	addi $sp,$sp, -4
+	sw $ra, 0($sp)
+	
+	lw $t0, BALL + 8
+	li $v0, 1
+	jal next_ball_loc
+	addi $a0, $v0, 0
+	addi $a1, $v1, 0
+	jal get_location_address
+	lw $t1, MY_COLOURS + 40
+	lw $t2, MY_COLOURS + 36
+	lw $t3, ($v0)
+	beq $t3, $t1, no_brick_coll
+	beq $t3, $t2, no_brick_coll
+	b brick_coll_epi
+	no_brick_coll:
+		li $v0, 0	
+	brick_coll_epi:
+	lw $ra, 0($sp)
+	addi $sp,$sp,4
+	jr $ra
 # new_dir(hit_pad, hit_wall) -> new_dir
 #	takes in whether the ball had any collisions, and provides a new direction based on the collision
 
@@ -358,46 +451,66 @@ new_dir:
 	lw $t0, BALL + 8
     	beq $a0, 1, hit_paddle
     	bgtz $a1, hit_wall
-    	#TODO: implement a hit_brick (function that checks if the ball hit a brick, then updates things)
+    	bgtz, $a2, hit_brick
     	b new_dir_epi
 	hit_paddle:
 		beq $t0, 4, l_to_r
 		li $t0, 2
-		sw $t0, BALL + 8
-		b new_dir_epi
+		b hit_pad_epi
 		l_to_r:
 			li $t0, 1
+		hit_pad_epi:
 			sw $t0, BALL + 8
+			bgtz $a1, hit_wall
+			bgtz $a2, hit_brick
+			b new_dir_epi
 	hit_wall:
-		beq $a1, 0, new_dir_epi
 		beq $a1, 2, right_side
 		beq $a1, 3, left_side
 		beq $a1, 4, t_corner
 		beq $t0, 1, top_l2r
 		
 		li $t0, 3
-		b new_dir_epi
+		b hit_wall_epi
 		top_l2r:
 			li $t0, 4
-			b new_dir_epi
+			b hit_wall_epi
 		right_side:
 			beq $t0, 4, right_td
 			li $t0, 2
-			b new_dir_epi
+			b hit_wall_epi
 			right_td: li $t0, 3
-			b new_dir_epi
+			b hit_wall_epi
 		left_side:
 			beq $t0, 3, left_td
 			li $t0, 1
-			b new_dir_epi
+			b hit_wall_epi
 			left_td: li $t0, 4
-			b new_dir_epi
+			b hit_wall_epi
 		t_corner:
 			beq $t0, 2, l_corn 
 			li $t0, 3
-			b new_dir_epi
+			b hit_wall_epi
 			l_corn: li $t0, 4
+			b hit_wall_epi
+		hit_wall_epi:
+			bgtz $a2, hit_brick
 			b new_dir_epi
+	hit_brick:
+		li $a2, 0
+		beq $t0, 1, brick_ur
+		beq $t0, 2, brick_ul
+		beq $t0, 3, brick_dl
+		li $t0, 1
+		b new_dir_epi
+		brick_ur:
+			li $t0, 4
+			b new_dir_epi
+		brick_ul:
+			li $t0, 3
+			b new_dir_epi
+		brick_dl:
+			li $t0, 2
 	new_dir_epi:
 		addi $v0, $t0, 0
 		jr $ra
@@ -414,48 +527,13 @@ ball_mover:
     	lw $a1, BALL + 4 	#function parameter - ball's y-value
     	jal get_location_address
     	lw $t0, MY_COLOURS + 40
-    	sw $t0, ($v0)		#store black in the ball's former location
+    	sw $t0, ($v0)		#store black in the ball's former location	
+       	jal next_ball_loc
+    	addi $a0, $v0, 0
+    	addi $a1, $v1, 0
+    	sw $a0, BALL		#store ball's updated position
+    	sw $a1, BALL + 4
     	
-    	lw $t0, BALL + 8	#get the ball's direction, branch depending on the direction (u_l = up-left, etc.)
-    	beq $t0, 2, u_l
-    	beq $t0, 3, d_l
-    	beq $t0, 4, d_r
-    	
-    	
-    	u_r:
-    		lw $a0, BALL		#load ball's current position
-    		lw $a1, BALL + 4
-    		addi $a0, $a0, 1	#update ball's current position (x,y) --> (x+1, y-1)
-    		addi $a1, $a1, -1
-    		sw $a0, BALL		#store ball's updated position
-    		sw $a1, BALL + 4
-    		b update_ball
-    	u_l: 
-    		lw $a0, BALL		#load ball's current position
-    		lw $a1, BALL + 4
-    		addi $a0, $a0, -1	#update ball's current position (x,y) --> (x-1, y-1)
-    		addi $a1, $a1, -1
-    		sw $a0, BALL		#store ball's updated position
-    		sw $a1, BALL + 4
-    		b update_ball
-    	d_l:				
-    		lw $a0, BALL		#load ball's current position
-    		lw $a1, BALL + 4
-    		addi $a0, $a0, -1	#update ball's current position (x,y) --> (x-1, y+1)
-    		addi $a1, $a1, 1
-    		sw $a0, BALL		#store ball's updated position
-    		sw $a1, BALL + 4
-    		b update_ball
-    	d_r: 
-    		lw $a0, BALL		#load ball's current position
-    		lw $a1, BALL + 4
-    		addi $a0, $a0, 1	#update ball's current position (x,y) --> (x+1, y+1)
-    		addi $a1, $a1, 1
-    		sw $a0, BALL		#store ball's updated position
-    		sw $a1, BALL + 4
-    		b update_ball
-    	
-    	update_ball:
     	jal get_location_address
     	lw $t1, MY_COLOURS + 32	
     	sw $t1, ($v0)		#store white in the ball's new location
