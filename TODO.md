@@ -2,10 +2,10 @@
 
 ## Deliverable 1: Tuesday, Nov 29th 9 am
 1. Draw the scene
-  - [ ] Draw the three walls
-  - [ ] Draw all the bricks (At least three rows and three different coloured bricks)
-  - [ ] Draw the paddle
-  - [ ] Draw the ball
+  - [X] Draw the three walls
+  - [X] Draw all the bricks (At least three rows and three different coloured bricks)
+  - [X] Draw the paddle
+  - [X] Draw the ball
 
 2. Implement movement and other controls
   - [ ] Move the paddle using keyboard input
@@ -16,7 +16,7 @@
 3. Implement collision detection
   - [ ] The ball bounces when it hits another object
   - [ ] A brick dissapears when it is hit by the ball once
-  - [ ] The player loses when the ball hits the bottom of the screen
+  - [X] The player loses when the ball hits the bottom of the screen
 
 
 ## Deliverable 2: Due Tuesday, December 6th before 9 am on MarkUs
