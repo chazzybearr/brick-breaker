@@ -114,7 +114,7 @@ main:
     setup_ball:
     	li $t0, 16	
     	sw $t0, BALL 		#loads starting ball's x-value
-    	li $t0, 22
+    	li $t0, 20
     	sw $t0, BALL + 4 	#loads starting ball's y-value
     	li $t0, 1
     	sw $t0, BALL + 8	#loads starting ball's direction (diagonal up + right)
@@ -122,7 +122,7 @@ main:
     setup_paddle: 		#draws the paddle
     	li $t0, 14	
     	sw $t0, PADDLE 		#loads starting paddle's x-value 
-    	li $t0, 24
+    	li $t0, 28
     	sw $t0, PADDLE + 4 	#loads starting paddle's y-value (constant)
     	
 game_loop:
