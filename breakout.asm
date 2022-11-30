@@ -2,7 +2,7 @@
 # This file contains our implementation of Breakout.
 #
 # Student 1: Mani Setayesh, 1008078367
-# Student 2: Leon Cai, Student Number
+# Student 2: Leon Cai, 
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       8
 # - Unit height in pixels:      8
