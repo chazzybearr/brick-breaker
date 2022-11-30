@@ -556,13 +556,15 @@ pad_left:
 	lw $t1, MY_COLOURS + 36
     	lw $a0, PADDLE 		#function parameter - paddle's x-value
     	lw $a1, PADDLE + 4 	#function parameter - paddle's y-value
-    	addi $t2, $a0, -1	
+    	addi $t2, $a0, -1
+    	ble $t2, 0, pad_left_epi
     	sw $t2, PADDLE		#store x - 1 in paddle's x-value
     	jal get_location_address
     	sw $t1, -4($v0)		#store gray in the new left-est pixel
     	sw $t0, 16($v0)		#store black in the former right-est pixel
     	
     	#EPILOGUE - LOAD RA from STACK
+    	pad_left_epi:
     	lw $ra, 0($sp)
     	addi $sp,$sp, 4
     	jr $ra
@@ -581,6 +583,8 @@ pad_right:
 	lw $t1, MY_COLOURS + 36
     	lw $a0, PADDLE 		#function parameter - paddle's x-value
     	lw $a1, PADDLE + 4	#function parameter - paddle's y-value
+    	addi $t2, $a0, 6
+    	bge $t2, 32, pad_right_epi
     	addi $t2, $a0, 1
     	sw $t2, PADDLE		#store x + 1 in paddle's x-value
     	jal get_location_address
@@ -588,6 +592,7 @@ pad_right:
     	sw $t1, 20($v0)		#store gray in the new right-est pixel
     	
     	#EPILOGUE - LOAD RA from STACK
+    	pad_right_epi:
     	lw $ra, 0($sp)
     	addi $sp,$sp, 4
     	jr $ra
