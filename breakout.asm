@@ -2,7 +2,7 @@
 # This file contains our implementation of Breakout.
 #
 # Student 1: Mani Setayesh, 1008078367
-# Student 2: Leon Cai, 
+# Student 2: Leon Cai, 1007966523
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       8
 # - Unit height in pixels:      8
@@ -148,8 +148,19 @@ game_loop:
     	lw $a0, 4($t0)                  # Load second word from keyboard
     	beq $a0, 0x61, m_left
     	beq $a0, 0x64, m_right
+    	beq $a0 0x070, pause		# User pressed p on keyboard
     	beq $a0, 0x71, terminate
     	b collisions
+    	
+    	pause:
+    		lw $t0, ADDR_KBRD 
+    		lw $t8, 0($t0)
+    		beq $t8, 0, pause 	# Loading first word from keyboard and checking if there is no keyboard press
+    		lw $t8, 4($t0)		# Loading the key from keyboard
+    		bne $t8, 0x70, pause	# Keep looping if key is not p
+    		b game_loop		# Resume game
+    		
+    	
     	m_left: 
     		jal pad_left
     		b collisions
