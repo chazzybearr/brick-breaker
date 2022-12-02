@@ -590,15 +590,16 @@ pad_right:
 	sw $ra, 0($sp)
 	
 	#BODY
-	lw $t0, MY_COLOURS + 40
-	lw $t1, MY_COLOURS + 36
+
     	lw $a0, PADDLE 		#function parameter - paddle's x-value
     	lw $a1, PADDLE + 4	#function parameter - paddle's y-value
     	addi $t2, $a0, 6
     	bge $t2, 32, pad_right_epi
     	addi $t2, $a0, 1
     	sw $t2, PADDLE		#store x + 1 in paddle's x-value
-    	jal get_location_address
+    	jal get_location_address	
+    	lw $t0, MY_COLOURS + 40
+	lw $t1, MY_COLOURS + 36
     	sw $t0, ($v0)		#store black in the former left-est pixel
     	sw $t1, 20($v0)		#store gray in the new right-est pixel
     	
@@ -607,7 +608,24 @@ pad_right:
     	lw $ra, 0($sp)
     	addi $sp,$sp, 4
     	jr $ra
-    	
+
+clear_screen:
+	la $t0, ADDR_DSPL
+	lw $t0, 0($t0)
+	li $t1, 0
+	lw $t2, MY_COLOURS + 40
+	
+	clean_loop: 
+	beq $t1, 1024, clear_screen_epi
+	sw $t2, ($t0)
+	addi $t0, $t0, 4
+	addi $t1, $t1, 1
+	b clean_loop
+	
+	clear_screen_epi:
+	jr $ra
+	
 terminate:
+	jal clear_screen
 	li $v0, 10 # terminate the program gracefully 
 	syscall
