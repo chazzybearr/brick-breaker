@@ -2,7 +2,7 @@
 # This file contains our implementation of Breakout.
 #
 # Student 1: Mani Setayesh, 1008078367
-# Student 2: Leon Cai, Student Number
+# Student 2: Leon Cai, 1007966523
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       8
 # - Unit height in pixels:      8
@@ -114,7 +114,7 @@ main:
     setup_ball:
     	li $t0, 16	
     	sw $t0, BALL 		#loads starting ball's x-value
-    	li $t0, 22
+    	li $t0, 20
     	sw $t0, BALL + 4 	#loads starting ball's y-value
     	li $t0, 1
     	sw $t0, BALL + 8	#loads starting ball's direction (diagonal up + right)
@@ -122,7 +122,7 @@ main:
     setup_paddle: 		#draws the paddle
     	li $t0, 14	
     	sw $t0, PADDLE 		#loads starting paddle's x-value 
-    	li $t0, 24
+    	li $t0, 28
     	sw $t0, PADDLE + 4 	#loads starting paddle's y-value (constant)
     	
 game_loop:
@@ -148,8 +148,19 @@ game_loop:
     	lw $a0, 4($t0)                  # Load second word from keyboard
     	beq $a0, 0x61, m_left
     	beq $a0, 0x64, m_right
+    	beq $a0 0x070, pause		# User pressed p on keyboard
     	beq $a0, 0x71, terminate
     	b collisions
+    	
+    	pause:
+    		lw $t0, ADDR_KBRD 
+    		lw $t8, 0($t0)
+    		beq $t8, 0, pause 	# Loading first word from keyboard and checking if there is no keyboard press
+    		lw $t8, 4($t0)		# Loading the key from keyboard
+    		bne $t8, 0x70, pause	# Keep looping if key is not p
+    		b game_loop		# Resume game
+    		
+    	
     	m_left: 
     		jal pad_left
     		b collisions
@@ -556,13 +567,15 @@ pad_left:
 	lw $t1, MY_COLOURS + 36
     	lw $a0, PADDLE 		#function parameter - paddle's x-value
     	lw $a1, PADDLE + 4 	#function parameter - paddle's y-value
-    	addi $t2, $a0, -1	
+    	addi $t2, $a0, -1
+    	ble $t2, 0, pad_left_epi
     	sw $t2, PADDLE		#store x - 1 in paddle's x-value
     	jal get_location_address
     	sw $t1, -4($v0)		#store gray in the new left-est pixel
     	sw $t0, 16($v0)		#store black in the former right-est pixel
     	
     	#EPILOGUE - LOAD RA from STACK
+    	pad_left_epi:
     	lw $ra, 0($sp)
     	addi $sp,$sp, 4
     	jr $ra
@@ -581,6 +594,8 @@ pad_right:
 	lw $t1, MY_COLOURS + 36
     	lw $a0, PADDLE 		#function parameter - paddle's x-value
     	lw $a1, PADDLE + 4	#function parameter - paddle's y-value
+    	addi $t2, $a0, 6
+    	bge $t2, 32, pad_right_epi
     	addi $t2, $a0, 1
     	sw $t2, PADDLE		#store x + 1 in paddle's x-value
     	jal get_location_address
@@ -588,6 +603,7 @@ pad_right:
     	sw $t1, 20($v0)		#store gray in the new right-est pixel
     	
     	#EPILOGUE - LOAD RA from STACK
+    	pad_right_epi:
     	lw $ra, 0($sp)
     	addi $sp,$sp, 4
     	jr $ra
