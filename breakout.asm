@@ -53,11 +53,14 @@ PADDLE: # PADDLE for x value, PADDLE + 4 for y value
 
 	# Run the Brick Breaker game.
 main:
+    jal clear_screen
+    
+    li $v0, 32
+    li $a0, 100 
+    syscall
     # Knowing where to write (top-left unit): ADR_DSPL
     la $t1, ADDR_DSPL
     lw $t2, 0($t1) 	# $t2 = ADR_DSPL
-    
-    
     
     # Initializing the game walls
     lw $t4, MY_COLOURS + 36  
@@ -83,9 +86,7 @@ main:
     	addi $t2, $t2, 128	# Moving the display pixel to the next row
     	addi $t7, $t7, 1
     	blt $t7, 32, right_wall
-
-
-
+    	
     li $t2, 32
     li $t3, 0
     li $t8, 0
@@ -144,12 +145,16 @@ game_loop:
 	b collisions
 	
 	keyboard_input:
-    	# 1b. Check which key has been pressed
+    	# 1b. Check which key has been pressed (supports caps-lock)
     	lw $a0, 4($t0)                  # Load second word from keyboard
     	beq $a0, 0x61, m_left
+    	beq $a0, 0x41, m_left
     	beq $a0, 0x64, m_right
-    	beq $a0 0x070, pause		# User pressed p on keyboard
+    	beq $a0, 0x44, m_right
+    	beq $a0  0x70, pause		# User pressed p on keyboard
+    	beq $a0  0x50, pause
     	beq $a0, 0x71, terminate
+    	beq $a0, 0x51, terminate
     	b collisions
     	
     	pause:
@@ -157,6 +162,7 @@ game_loop:
     		lw $t8, 0($t0)
     		beq $t8, 0, pause 	# Loading first word from keyboard and checking if there is no keyboard press
     		lw $t8, 4($t0)		# Loading the key from keyboard
+    		bne $t8, 0x50, pause
     		bne $t8, 0x70, pause	# Keep looping if key is not p
     		b game_loop		# Resume game
     		
@@ -182,6 +188,7 @@ game_loop:
     	addi $a0, $s2, 0
     	jal brick_destroyer
     	
+    	# update the direction of the ball accordingly. Then move the ball.
     	addi $a0, $s0, 0
     	addi $a1, $s1, 0
     	addi $a2, $s2, 0
@@ -368,6 +375,8 @@ wall_collision:
 	collide_epilogue:
 	jr $ra
 
+#next_ball_loc() -> (int x, int y)
+#	return the next location of the ball - (x,y) coordinates
 next_ball_loc:
 	lw $t0, BALL + 8
 	beq $t0, 2, u_l
@@ -400,29 +409,31 @@ next_ball_loc:
     	next_loc_epi:
     	jr $ra,
 
+# brick_destroyer(boolean: brick_collision) -> void
+#	 if the boolean is true, then destroy the brick that is in the next location of the ball
 brick_destroyer:
 	addi $sp,$sp, -12
 	sw $s1, 8($sp)
 	sw $s0, 4($sp)
 	sw $ra, 0($sp)
-	beq $a0, 0, destroyer_epi
+	beq $a0, 0, destroyer_epi #Check the input boolean for collision actually occuring
 	jal next_ball_loc
-	addi $s0, $v0, 0 # x-value
-	addi $s1, $v1, 0 # y-value
-	addi $a0, $v0, 0 # x-value
-	addi $a1, $v1, 0 # y-value
-	jal get_location_address
+	addi $s0, $v0, 0
+	addi $s1, $v1, 0 
+	addi $a0, $v0, 0
+	addi $a1, $v1, 0
+	jal get_location_address #get ball's next location
 	lw $t0, MY_COLOURS + 40
 	sw $t0, ($v0)
 	and $t0, $s1, 1
-	beq $t0, 1, odd_line
+	beq $t0, 1, odd_line # check if the next location is on an even/odd value of "y"
 	b even_line
-	odd_line:
+	odd_line: # if odd, store black in the ball's next location and the pixel right to it
 		addi $v0, $v0, 4
 		lw $t0, MY_COLOURS + 40
 		sw $t0, ($v0)
 		b destroyer_epi
-	even_line:
+	even_line: # if even, store black in the ball's next location and the pixel left to it
 		addi $v0, $v0, -4
 		lw $t0, MY_COLOURS + 40
 		sw $t0, ($v0)
@@ -432,50 +443,62 @@ brick_destroyer:
 	lw $s1, 8($sp)
 	addi $sp,$sp,12
 	jr $ra
-	
+
+# brick_collision() -> boolean:collides
+#	return 1 if ball collides with "a colour". 0 otherwise
 brick_collision:
 	addi $sp,$sp, -4
 	sw $ra, 0($sp)
 	
+	#get the ball's next location, assume collision occurs
 	lw $t0, BALL + 8
 	li $v0, 1
 	jal next_ball_loc
 	addi $a0, $v0, 0
 	addi $a1, $v1, 0
-	jal get_location_address
-	lw $t1, MY_COLOURS + 40
+	jal get_location_address #get the address of the next location
+	lw $t1, MY_COLOURS + 40 
 	lw $t2, MY_COLOURS + 36
 	lw $t3, ($v0)
+	#check if the next location has a colour other than black/gray
 	beq $t3, $t1, no_brick_coll
 	beq $t3, $t2, no_brick_coll
 	b brick_coll_epi
-	no_brick_coll:
+	no_brick_coll: # if no collision, update value to 0
 		li $v0, 0	
 	brick_coll_epi:
 	lw $ra, 0($sp)
 	addi $sp,$sp,4
 	jr $ra
-# new_dir(hit_pad, hit_wall) -> new_dir
+	
+# new_dir(hit_pad, hit_wall, hit_brick) -> new_dir
 #	takes in whether the ball had any collisions, and provides a new direction based on the collision
 
 new_dir:
+	# Load the ball's direction, check for which collision that occured based on the inputs (paddle first)
 	lw $t0, BALL + 8
     	beq $a0, 1, hit_paddle
     	bgtz $a1, hit_wall
     	bgtz, $a2, hit_brick
+    	
+    	# No collision - jump to end
     	b new_dir_epi
+    	
 	hit_paddle:
+		#compare the direction of the ball, change accordingly
 		beq $t0, 4, l_to_r
 		li $t0, 2
 		b hit_pad_epi
 		l_to_r:
 			li $t0, 1
+		# store new direction, check for other collisions (brick/wall)
 		hit_pad_epi:
 			sw $t0, BALL + 8
 			bgtz $a1, hit_wall
 			bgtz $a2, hit_brick
 			b new_dir_epi
 	hit_wall:
+		#compare the direction of the ball, change accordingly
 		beq $a1, 2, right_side
 		beq $a1, 3, left_side
 		beq $a1, 4, t_corner
@@ -504,10 +527,14 @@ new_dir:
 			b hit_wall_epi
 			l_corn: li $t0, 4
 			b hit_wall_epi
+		# store new direction, check for other collisions (brick/wall)
 		hit_wall_epi:
+			sw $t0, BALL + 8
 			bgtz $a2, hit_brick
 			b new_dir_epi
+	
 	hit_brick:
+		#compare the direction of the ball, change accordingly
 		li $a2, 0
 		beq $t0, 1, brick_ur
 		beq $t0, 2, brick_ul
@@ -609,12 +636,16 @@ pad_right:
     	addi $sp,$sp, 4
     	jr $ra
 
+# clear_screen()-> void
+#	store black in all pixels (clean the screen)
 clear_screen:
+	#load top-left pixel, the colour black, and set loop variable to 0
 	la $t0, ADDR_DSPL
 	lw $t0, 0($t0)
 	li $t1, 0
 	lw $t2, MY_COLOURS + 40
 	
+	#store black in address, add to address by 4, increment loop variable until all pixels are black
 	clean_loop: 
 	beq $t1, 1024, clear_screen_epi
 	sw $t2, ($t0)
@@ -624,8 +655,145 @@ clear_screen:
 	
 	clear_screen_epi:
 	jr $ra
+
+game_over_screen:
+	addi $sp, $sp, -8
+	sw $s2, 4($sp)
+	sw $ra, 0($sp)
+	
+
+	lw $s2, MY_COLOURS + 32
+	li $a0, 5
+	li $a1, 7
+	jal get_location_address
+	sw $s2, ($v0)
+	sw $s2, 4($v0)
+	sw $s2, 8($v0)		
+	sw $s2, 12($v0)	
+	sw $s2, 20($v0)
+	sw $s2, 24($v0)
+	sw $s2, 28($v0)
+	sw $s2, 32($v0)
+	sw $s2, 40($v0)
+	sw $s2, 56($v0)
+	sw $s2, 64($v0)
+	sw $s2, 68($v0)
+	sw $s2, 72($v0)
+	sw $s2, 76($v0)
+	sw $s2, 128($v0)
+	sw $s2, 148($v0)
+	sw $s2, 160($v0)
+	sw $s2, 168($v0)
+	sw $s2, 172($v0)
+	sw $s2, 180($v0)
+	sw $s2, 184($v0)		
+	sw $s2, 192($v0)
+	sw $s2, 256($v0)
+	sw $s2, 264($v0)
+	sw $s2, 268($v0)
+	sw $s2, 276($v0)
+	sw $s2, 280($v0)
+	sw $s2, 284($v0)
+	sw $s2, 288($v0)
+	sw $s2, 296($v0)
+	sw $s2, 304($v0)
+	sw $s2, 312($v0)
+	sw $s2, 320($v0)
+	sw $s2, 324($v0)
+	sw $s2, 328($v0)
+	sw $s2, 384($v0)
+	sw $s2, 396($v0)
+	sw $s2, 404($v0)
+	sw $s2, 416($v0)
+	sw $s2, 424($v0)	
+	sw $s2, 440($v0)
+	sw $s2, 448($v0)
+	sw $s2, 512($v0)
+	sw $s2, 516($v0)
+	sw $s2, 520($v0)
+	sw $s2, 524($v0)
+	sw $s2, 532($v0)
+	sw $s2, 544($v0)
+	sw $s2, 552($v0)
+	sw $s2, 568($v0)
+	sw $s2, 576($v0)	
+	sw $s2, 580($v0)
+	sw $s2, 584($v0)
+	sw $s2, 588($v0)
+	sw $s2, 768($v0)
+	sw $s2, 772($v0)
+	sw $s2, 776($v0)
+	sw $s2, 780($v0)
+	sw $s2, 788($v0)
+	sw $s2, 804($v0)
+	sw $s2, 812($v0)
+	sw $s2, 816($v0)	
+	sw $s2, 820($v0)
+	sw $s2, 824($v0)
+	sw $s2, 832($v0)
+	sw $s2, 836($v0)
+	sw $s2, 840($v0)
+	sw $s2, 844($v0)
+	sw $s2, 896($v0)
+	sw $s2, 908($v0)
+	sw $s2, 916($v0)
+	sw $s2, 932($v0)
+	sw $s2, 940($v0)	
+	sw $s2, 960($v0)
+	sw $s2, 972($v0)
+	sw $s2, 1024($v0)
+	sw $s2, 1036($v0)
+	sw $s2, 1044($v0)
+	sw $s2, 1048($v0)
+	sw $s2, 1056($v0)
+	sw $s2, 1060($v0)
+	sw $s2, 1068($v0)
+	sw $s2, 1072($v0)	
+	sw $s2, 1076($v0)
+	sw $s2, 1088($v0)
+	sw $s2, 1092($v0)
+	sw $s2, 1096($v0)
+	sw $s2, 1100($v0)
+	sw $s2, 1152($v0)
+	sw $s2, 1164($v0)
+	sw $s2, 1176($v0)
+	sw $s2, 1180($v0)
+	sw $s2, 1184($v0)
+	sw $s2, 1196($v0)	
+	sw $s2, 1216($v0)
+	sw $s2, 1224($v0)
+	sw $s2, 1280($v0)
+	sw $s2, 1284($v0)
+	sw $s2, 1288($v0)
+	sw $s2, 1292($v0)
+	sw $s2, 1308($v0)
+	sw $s2, 1324($v0)
+	sw $s2, 1328($v0)
+	sw $s2, 1332($v0)
+	sw $s2, 1336($v0)	
+	sw $s2, 1344($v0)
+	sw $s2, 1356($v0)
+	
+	lw $ra, 0($sp)
+	lw $s2, 4($sp)
+	addi $sp, $sp, 8
+	jr $ra
 	
 terminate:
 	jal clear_screen
+	jal game_over_screen
+	
+	retry_loop:
+		lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
+  		lw $t1, 0($t0)                  # Load first word from keyboard
+    		beq $t1, 1, post_game_input     
+		b retry_loop
+	post_game_input:
+		lw $t1, 4($t0)
+		beq $t1, 0x52, main
+		beq $t1, 0x72, main
+		beq $t1, 0x51, quit
+		beq $t1, 0x71, quit 
+	quit:
 	li $v0, 10 # terminate the program gracefully 
 	syscall
