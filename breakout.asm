@@ -822,7 +822,9 @@ terminate:
 
 
 draw_score:
-	addi $sp, $sp, -4
+	addi $sp, $sp, -12
+	sw $s1, 8($sp)
+	sw $s0, 4($sp)
 	sw $ra, 0($sp)
 	
 	bge $s7, $s6, new_high
@@ -835,44 +837,50 @@ draw_score:
 		li $t0, 100
 		div $s7, $t0
 		mflo $a2
+		mfhi $s1
 		li $a0, 12
 		li $a1, 24
 		jal number_assigner
 		li $t0, 100
 		div $s6, $t0
 		mflo $a2
+		mfhi $s0
 		li $a0, 14
 		li $a1, 18
 		jal number_assigner
 	draw_tens:
 		li $t0, 10
-		div $s7, $t0
+		div $s1, $t0
 		mflo $a2
+		mfhi $s1
 		li $a0, 16
 		li $a1, 24
 		jal number_assigner
 		li $t0, 10
-		div $s6, $t0
+		div $s0, $t0
 		mflo $a2
+		mfhi $s0
 		li $a0, 18
 		li $a1, 18
 		jal number_assigner
 	draw_ones:
 		li $t0, 1
-		div $s7, $t0
+		div $s1, $t0
 		mflo $a2
 		li $a0, 20
 		li $a1, 24
 		jal number_assigner
-		li $t0, 10
-		div $s6, $t0
+		li $t0, 1
+		div $s0, $t0
 		mflo $a2
 		li $a0, 22
 		li $a1, 18
 		jal number_assigner
 	
 	lw $ra, 0($sp)
-	addi $sp, $sp, 4
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	addi $sp, $sp, 12
 	jr $ra
 
 number_assigner:
