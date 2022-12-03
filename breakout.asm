@@ -54,7 +54,7 @@ PADDLE: # PADDLE for x value, PADDLE + 4 for y value
 	# Run the Brick Breaker game.
 main:
     jal clear_screen
-    
+    li $s7, 0
     li $v0, 32
     li $a0, 100 
     syscall
@@ -131,12 +131,10 @@ game_loop:
 	beq $v0, 1, terminate # terminates the loop - before the setting of the loop variables
 	
 	# setting up loop variables - useful to keep track of things within each loop between function calls
-	addi $sp, $sp, -20
-	sw $s0, 16($sp)
-	sw $s1, 12($sp)
-	sw $s2, 8($sp)
-	sw $s3, 4($sp)
-	sw $s4, 0($sp)
+	addi $sp, $sp, -12
+	sw $s0, 8($sp)
+	sw $s1, 4($sp)
+	sw $s2, 0($sp)
 
 	# 1a. Check if key has been pressed 
 	lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
@@ -185,6 +183,10 @@ game_loop:
     	addi $s1, $v0, 0
     	jal brick_collision
     	addi $s2, $v0, 0
+    	beq $v0, 1, add_score
+    	b no_score
+    	add_score: addi $s7, $s7, 1
+    	no_score:
     	addi $a0, $s2, 0
     	jal brick_destroyer
     	
@@ -204,12 +206,10 @@ game_loop:
 	syscall
 
     #5. Go back to 1
-    	lw $s4, 0($sp)
-    	lw $s3, 4($sp)
-	lw $s2, 8($sp)
-	lw $s0, 12($sp)
-	lw $s1, 16($sp)
-	addi $sp, $sp, 20
+	lw $s2, 0($sp)
+	lw $s1, 4($sp)
+	lw $s0, 8($sp)
+	addi $sp, $sp, 12
    	b game_loop
 
 # get_location_address(x, y) -> address
@@ -452,7 +452,7 @@ brick_collision:
 	
 	#get the ball's next location, assume collision occurs
 	lw $t0, BALL + 8
-	li $v0, 1
+
 	jal next_ball_loc
 	addi $a0, $v0, 0
 	addi $a1, $v1, 0
@@ -460,6 +460,7 @@ brick_collision:
 	lw $t1, MY_COLOURS + 40 
 	lw $t2, MY_COLOURS + 36
 	lw $t3, ($v0)
+	li $v0, 1
 	#check if the next location has a colour other than black/gray
 	beq $t3, $t1, no_brick_coll
 	beq $t3, $t2, no_brick_coll
@@ -657,129 +658,147 @@ clear_screen:
 	jr $ra
 
 game_over_screen:
-	addi $sp, $sp, -8
-	sw $s2, 4($sp)
+	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	
-
-	lw $s2, MY_COLOURS + 32
+	jal draw_score
 	li $a0, 6
-	li $a1, 4
+	li $a1, 2
 	jal get_location_address
-	sw $s2, ($v0)
-	sw $s2, 4($v0)
-	sw $s2, 8($v0)		
-	sw $s2, 12($v0)	
-	sw $s2, 20($v0)
-	sw $s2, 24($v0)
-	sw $s2, 28($v0)
-	sw $s2, 32($v0)
-	sw $s2, 40($v0)
-	sw $s2, 56($v0)
-	sw $s2, 64($v0)
-	sw $s2, 68($v0)
-	sw $s2, 72($v0)
-	sw $s2, 76($v0)
-	sw $s2, 128($v0)
-	sw $s2, 148($v0)
-	sw $s2, 160($v0)
-	sw $s2, 168($v0)
-	sw $s2, 172($v0)
-	sw $s2, 180($v0)
-	sw $s2, 184($v0)		
-	sw $s2, 192($v0)
-	sw $s2, 256($v0)
-	sw $s2, 264($v0)
-	sw $s2, 268($v0)
-	sw $s2, 276($v0)
-	sw $s2, 280($v0)
-	sw $s2, 284($v0)
-	sw $s2, 288($v0)
-	sw $s2, 296($v0)
-	sw $s2, 304($v0)
-	sw $s2, 312($v0)
-	sw $s2, 320($v0)
-	sw $s2, 324($v0)
-	sw $s2, 328($v0)
-	sw $s2, 384($v0)
-	sw $s2, 396($v0)
-	sw $s2, 404($v0)
-	sw $s2, 416($v0)
-	sw $s2, 424($v0)	
-	sw $s2, 440($v0)
-	sw $s2, 448($v0)
-	sw $s2, 512($v0)
-	sw $s2, 516($v0)
-	sw $s2, 520($v0)
-	sw $s2, 524($v0)
-	sw $s2, 532($v0)
-	sw $s2, 544($v0)
-	sw $s2, 552($v0)
-	sw $s2, 568($v0)
-	sw $s2, 576($v0)	
-	sw $s2, 580($v0)
-	sw $s2, 584($v0)
-	sw $s2, 588($v0)
-	sw $s2, 768($v0)
-	sw $s2, 772($v0)
-	sw $s2, 776($v0)
-	sw $s2, 780($v0)
-	sw $s2, 788($v0)
-	sw $s2, 804($v0)
-	sw $s2, 812($v0)
-	sw $s2, 816($v0)	
-	sw $s2, 820($v0)
-	sw $s2, 824($v0)
-	sw $s2, 832($v0)
-	sw $s2, 836($v0)
-	sw $s2, 840($v0)
-	sw $s2, 844($v0)
-	sw $s2, 896($v0)
-	sw $s2, 908($v0)
-	sw $s2, 916($v0)
-	sw $s2, 932($v0)
-	sw $s2, 940($v0)	
-	sw $s2, 960($v0)
-	sw $s2, 972($v0)
-	sw $s2, 1024($v0)
-	sw $s2, 1036($v0)
-	sw $s2, 1044($v0)
-	sw $s2, 1048($v0)
-	sw $s2, 1056($v0)
-	sw $s2, 1060($v0)
-	sw $s2, 1068($v0)
-	sw $s2, 1072($v0)	
-	sw $s2, 1076($v0)
-	sw $s2, 1088($v0)
-	sw $s2, 1092($v0)
-	sw $s2, 1096($v0)
-	sw $s2, 1100($v0)
-	sw $s2, 1152($v0)
-	sw $s2, 1164($v0)
-	sw $s2, 1176($v0)
-	sw $s2, 1180($v0)
-	sw $s2, 1184($v0)
-	sw $s2, 1196($v0)	
-	sw $s2, 1216($v0)
-	sw $s2, 1224($v0)
-	sw $s2, 1280($v0)
-	sw $s2, 1284($v0)
-	sw $s2, 1288($v0)
-	sw $s2, 1292($v0)
-	sw $s2, 1308($v0)
-	sw $s2, 1324($v0)
-	sw $s2, 1328($v0)
-	sw $s2, 1332($v0)
-	sw $s2, 1336($v0)	
-	sw $s2, 1344($v0)
-	sw $s2, 1356($v0)
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)		
+	sw $t0, 12($v0)	
+	sw $t0, 20($v0)
+	sw $t0, 24($v0)
+	sw $t0, 28($v0)
+	sw $t0, 32($v0)
+	sw $t0, 40($v0)
+	sw $t0, 56($v0)
+	sw $t0, 64($v0)
+	sw $t0, 68($v0)
+	sw $t0, 72($v0)
+	sw $t0, 76($v0)
+	sw $t0, 128($v0)
+	sw $t0, 148($v0)
+	sw $t0, 160($v0)
+	sw $t0, 168($v0)
+	sw $t0, 172($v0)
+	sw $t0, 180($v0)
+	sw $t0, 184($v0)		
+	sw $t0, 192($v0)
+	sw $t0, 256($v0)
+	sw $t0, 264($v0)
+	sw $t0, 268($v0)
+	sw $t0, 276($v0)
+	sw $t0, 280($v0)
+	sw $t0, 284($v0)
+	sw $t0, 288($v0)
+	sw $t0, 296($v0)
+	sw $t0, 304($v0)
+	sw $t0, 312($v0)
+	sw $t0, 320($v0)
+	sw $t0, 324($v0)
+	sw $t0, 328($v0)
+	sw $t0, 384($v0)
+	sw $t0, 396($v0)
+	sw $t0, 404($v0)
+	sw $t0, 416($v0)
+	sw $t0, 424($v0)	
+	sw $t0, 440($v0)
+	sw $t0, 448($v0)
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)
+	sw $t0, 524($v0)
+	sw $t0, 532($v0)
+	sw $t0, 544($v0)
+	sw $t0, 552($v0)
+	sw $t0, 568($v0)
+	sw $t0, 576($v0)	
+	sw $t0, 580($v0)
+	sw $t0, 584($v0)
+	sw $t0, 588($v0)
+	sw $t0, 768($v0)
+	sw $t0, 772($v0)
+	sw $t0, 776($v0)
+	sw $t0, 780($v0)
+	sw $t0, 788($v0)
+	sw $t0, 804($v0)
+	sw $t0, 812($v0)
+	sw $t0, 816($v0)	
+	sw $t0, 820($v0)
+	sw $t0, 824($v0)
+	sw $t0, 832($v0)
+	sw $t0, 836($v0)
+	sw $t0, 840($v0)
+	sw $t0, 844($v0)
+	sw $t0, 896($v0)
+	sw $t0, 908($v0)
+	sw $t0, 916($v0)
+	sw $t0, 932($v0)
+	sw $t0, 940($v0)	
+	sw $t0, 960($v0)
+	sw $t0, 972($v0)
+	sw $t0, 1024($v0)
+	sw $t0, 1036($v0)
+	sw $t0, 1044($v0)
+	sw $t0, 1048($v0)
+	sw $t0, 1056($v0)
+	sw $t0, 1060($v0)
+	sw $t0, 1068($v0)
+	sw $t0, 1072($v0)	
+	sw $t0, 1076($v0)
+	sw $t0, 1088($v0)
+	sw $t0, 1092($v0)
+	sw $t0, 1096($v0)
+	sw $t0, 1100($v0)
+	sw $t0, 1152($v0)
+	sw $t0, 1164($v0)
+	sw $t0, 1176($v0)
+	sw $t0, 1180($v0)
+	sw $t0, 1184($v0)
+	sw $t0, 1196($v0)	
+	sw $t0, 1216($v0)
+	sw $t0, 1224($v0)
+	sw $t0, 1280($v0)
+	sw $t0, 1284($v0)
+	sw $t0, 1288($v0)
+	sw $t0, 1292($v0)
+	sw $t0, 1308($v0)
+	sw $t0, 1324($v0)
+	sw $t0, 1328($v0)
+	sw $t0, 1332($v0)
+	sw $t0, 1336($v0)	
+	sw $t0, 1344($v0)
+	sw $t0, 1356($v0)
 	
-	li $a0, 16
-	li $a1, 24
-	jal draw_0
+	li $a0, 6
+	li $a1, 18
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, 0($v0)
+	sw $t0, 8($v0)
+	sw $t0, 16($v0)
+	sw $t0, 128($v0)
+	sw $t0, 136($v0)
+	sw $t0, 144($v0)
+	sw $t0, 152($v0)
+	sw $t0, 256($v0)
+	sw $t0, 260($v0)
+	sw $t0, 264($v0)
+	sw $t0, 272($v0)
+	sw $t0, 384($v0)
+	sw $t0, 392($v0)
+	sw $t0, 400($v0)
+	sw $t0, 408($v0)
+	sw $t0, 512($v0)
+	sw $t0, 520($v0)
+	sw $t0, 528($v0)
+	
 	lw $ra, 0($sp)
-	lw $s2, 4($sp)
-	addi $sp, $sp, 8
+	addi $sp, $sp, 4
 	jr $ra
 
 terminate:
@@ -800,6 +819,100 @@ terminate:
 	quit:
 	li $v0, 10 # terminate the program gracefully 
 	syscall
+
+
+draw_score:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	bge $s7, $s6, new_high
+	b high_else
+	new_high:
+	addi $s6, $s7, 0
+	high_else:
+	
+	draw_hundreds:
+		li $t0, 100
+		div $s7, $t0
+		mflo $a2
+		li $a0, 12
+		li $a1, 24
+		jal number_assigner
+		li $t0, 100
+		div $s6, $t0
+		mflo $a2
+		li $a0, 14
+		li $a1, 18
+		jal number_assigner
+	draw_tens:
+		li $t0, 10
+		div $s7, $t0
+		mflo $a2
+		li $a0, 16
+		li $a1, 24
+		jal number_assigner
+		li $t0, 10
+		div $s6, $t0
+		mflo $a2
+		li $a0, 18
+		li $a1, 18
+		jal number_assigner
+	draw_ones:
+		li $t0, 1
+		div $s7, $t0
+		mflo $a2
+		li $a0, 20
+		li $a1, 24
+		jal number_assigner
+		li $t0, 10
+		div $s6, $t0
+		mflo $a2
+		li $a0, 22
+		li $a1, 18
+		jal number_assigner
+	
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
+number_assigner:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	beq $a2, 1, one
+	beq $a2, 2, two
+	beq $a2, 3, three
+	beq $a2, 4, four
+	beq $a2, 5, five
+	beq $a2, 6, six
+	beq $a2, 7, seven
+	beq $a2, 8, eight
+	beq $a2, 9, nine
+	zero: jal draw_0
+		b na_epi
+	one: jal draw_1
+		b na_epi
+	two: jal draw_2
+		b na_epi
+	three: jal draw_3
+		b na_epi
+	four: jal draw_4
+		b na_epi
+	five: jal draw_5
+		b na_epi
+	six: jal draw_6
+		b na_epi
+	seven: jal draw_7
+		b na_epi
+	eight: jal draw_8
+		b na_epi
+	nine: jal draw_9
+		b na_epi
+	
+	na_epi:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
 
 #draw_0(x,y) -> void
 # draws a 0, starting from the top right position
