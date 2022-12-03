@@ -160,11 +160,9 @@ game_loop:
     		lw $t8, 0($t0)
     		beq $t8, 0, pause 	# Loading first word from keyboard and checking if there is no keyboard press
     		lw $t8, 4($t0)		# Loading the key from keyboard
-    		bne $t8, 0x50, pause
-    		bne $t8, 0x70, pause	# Keep looping if key is not p
-    		b game_loop		# Resume game
-    		
-    	
+    		beq $t8, 0x50, collisions
+    		beq $t8, 0x70, collisions	# Keep looping if key is not p
+    		b pause		# Resume game
     	m_left: 
     		jal pad_left
     		b collisions
