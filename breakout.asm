@@ -663,8 +663,8 @@ game_over_screen:
 	
 
 	lw $s2, MY_COLOURS + 32
-	li $a0, 5
-	li $a1, 7
+	li $a0, 6
+	li $a1, 4
 	jal get_location_address
 	sw $s2, ($v0)
 	sw $s2, 4($v0)
@@ -774,11 +774,14 @@ game_over_screen:
 	sw $s2, 1344($v0)
 	sw $s2, 1356($v0)
 	
+	li $a0, 16
+	li $a1, 24
+	jal draw_0
 	lw $ra, 0($sp)
 	lw $s2, 4($sp)
 	addi $sp, $sp, 8
 	jr $ra
-	
+
 terminate:
 	jal clear_screen
 	jal game_over_screen
@@ -797,3 +800,207 @@ terminate:
 	quit:
 	li $v0, 10 # terminate the program gracefully 
 	syscall
+
+#draw_0(x,y) -> void
+# draws a 0, starting from the top right position
+draw_0:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 128($v0)
+	sw $t0, 136($v0)
+	sw $t0, 256($v0)	
+	sw $t0, 264($v0)
+	sw $t0, 384($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
+#draw_1(x,y) -> void
+# draws a 1, starting from the top right position
+draw_1:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, 4($v0)
+	sw $t0, 132($v0)
+	sw $t0, 260($v0)	
+	sw $t0, 388($v0)
+	sw $t0, 516($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_2(x,y) -> void
+# draws a 2, starting from the top right position
+draw_2:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 136($v0)
+	sw $t0, 256($v0)
+	sw $t0, 260($v0)	
+	sw $t0, 264($v0)
+	sw $t0, 384($v0)
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_3(x,y) -> void
+# draws a 3, starting from the top right position
+draw_3:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 136($v0)
+	sw $t0, 260($v0)	
+	sw $t0, 264($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_4(x,y) -> void
+# draws a 4, starting from the top right position
+draw_4:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 8($v0)
+	sw $t0, 128($v0)
+	sw $t0, 136($v0)
+	sw $t0, 256($v0)
+	sw $t0, 260($v0)		
+	sw $t0, 264($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_5(x,y) -> void
+# draws a 5, starting from the top right position
+draw_5:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 128($v0)
+	sw $t0, 256($v0)	
+	sw $t0, 260($v0)	
+	sw $t0, 264($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	#draw_6(x,y) -> void
+# draws a 6, starting from the top right position
+draw_6:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 128($v0)
+	sw $t0, 256($v0)
+	sw $t0, 260($v0)	
+	sw $t0, 264($v0)
+	sw $t0, 384($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_7(x,y) -> void
+# draws a 7, starting from the top right position
+draw_7:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 136($v0)
+	sw $t0, 260($v0)	
+	sw $t0, 384($v0)	
+	sw $t0, 512($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_8(x,y) -> void
+# draws a 8, starting from the top right position
+draw_8:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 128($v0)
+	sw $t0, 136($v0)
+	sw $t0, 256($v0)
+	sw $t0, 260($v0)		
+	sw $t0, 264($v0)
+	sw $t0, 384($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_9(x,y) -> void
+# draws a 9, starting from the top right position
+draw_9:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 128($v0)
+	sw $t0, 136($v0)
+	sw $t0, 256($v0)
+	sw $t0, 260($v0)		
+	sw $t0, 264($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
