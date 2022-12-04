@@ -3,6 +3,9 @@
 #
 # Student 1: Mani Setayesh, 1008078367
 # Student 2: Leon Cai, 1007966523
+
+# Easy features implemented:
+# Hard features implemented:
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       8
 # - Unit height in pixels:      8
@@ -53,65 +56,11 @@ PADDLE: # PADDLE for x value, PADDLE + 4 for y value
 
 	# Run the Brick Breaker game.
 main:
-    jal clear_screen
     li $s7, 0
-    li $v0, 32
-    li $a0, 100 
-    syscall
-    # Knowing where to write (top-left unit): ADR_DSPL
-    la $t1, ADDR_DSPL
-    lw $t2, 0($t1) 	# $t2 = ADR_DSPL
-    
-    # Initializing the game walls
-    lw $t4, MY_COLOURS + 36  
- 
-     top_wall:
-    	sw  $t4, 0($t2)		# Displaying the pixel
-    	addi $t2, $t2, 4	# Moving the display pixel over by one unit
-    	addi $t5, $t5, 1	# Incrementing the counter
-    	blt $t5, 32, top_wall	# Loop if conditions not met
-    
-    lw $t2, 0($t1) 		# Resetting address display pixel
-    
-    left_wall:
-    	sw  $t4, 0($t2)
-    	addi $t2, $t2, 128	# Moving the display pixel to the next row
-    	addi $t6, $t6, 1
-    	blt $t6, 32, left_wall
-    
-    lw $t2, 0($t1) 
-    
-    right_wall:	
-    	sw  $t4, 252($t2)
-    	addi $t2, $t2, 128	# Moving the display pixel to the next row
-    	addi $t7, $t7, 1
-    	blt $t7, 32, right_wall
-    	
-    li $t2, 32
-    li $t3, 0
-    li $t8, 0
-    
-    lw $t1, 0($t1)
-    la $t0, MY_COLOURS
-    seven_line_loop:	# draws seven lines
-	beq $t8, 7, setup_ball
-	lw $t2,0($t0)
-        addi $t0,$t0, 4
-	add $t8, $t8, 1
-	li $t9, 0
-	
-    # Each line is 32 units -> 32 times drawing a line
-    draw_line_loop:	# draws one line
-    	bge $t9, 30, new_line	# 32 total pixels per row - 2 edge walls
-    	sw  $t2, 132($t1)	# 132 - starts drawing at second row second pixel
-    	addi $t1, $t1, 4
-    	addi $t9, $t9, 1
-    	b draw_line_loop
-    
-    new_line: 		# goes to a new line
-	addi $t1, $t1, 8 	# sets display pixel to be second pixel of next line
-	b seven_line_loop
-	
+    jal clear_screen
+    jal draw_walls
+    jal draw_bricks
+
     setup_ball:
     	li $t0, 16	
     	sw $t0, BALL 		#loads starting ball's x-value
@@ -229,6 +178,67 @@ get_location_address:
 
     	jr $ra
 
+draw_bricks:
+	li $t2, 32
+    li $t3, 0
+    li $t8, 0
+    la $t1, ADDR_DSPL
+    lw $t1, 0($t1)
+    la $t0, MY_COLOURS
+    seven_line_loop:	# draws seven lines
+	beq $t8, 7, setup_ball
+	lw $t2,0($t0)
+        addi $t0,$t0, 4
+	add $t8, $t8, 1
+	li $t9, 0
+	
+    # Each line is 32 units -> 32 times drawing a line
+    draw_line_loop:	# draws one line
+    	bge $t9, 30, new_line	# 32 total pixels per row - 2 edge walls
+    	sw  $t2, 132($t1)	# 132 - starts drawing at second row second pixel
+    	addi $t1, $t1, 4
+    	addi $t9, $t9, 1
+    	b draw_line_loop
+    
+    new_line: 		# goes to a new line
+	addi $t1, $t1, 8 	# sets display pixel to be second pixel of next line
+	b seven_line_loop
+	
+    jr $ra
+
+draw_walls:
+    # Knowing where to write (top-left unit): ADR_DSPL
+    la $t0, ADDR_DSPL
+    lw $t0, 0($t0) 	# $t2 = ADR_DSPL
+    # Initializing the game walls
+    lw $t1, MY_COLOURS + 36  
+    
+    li $t2, 0
+     top_wall:
+    	sw  $t1, 0($t0)		# Displaying the pixel
+    	addi $t0, $t0, 4	# Moving the display pixel over by one unit
+    	addi $t2, $t2, 1	# Incrementing the counter
+    	blt $t2, 32, top_wall	# Loop if conditions not met
+    
+    la $t0, ADDR_DSPL		# Resetting address display pixel
+    lw $t0, 0($t0) 		# $t0 = ADR_DSPL
+    li $t2, 0
+    right_wall:	
+    	sw  $t1, 252($t0)
+    	addi $t0, $t0, 128 	# Moving the display pixel to the next row
+    	addi $t2, $t2, 1
+    	blt $t2, 32, right_wall
+
+    la $t0, ADDR_DSPL		# Resetting address display pixel
+    lw $t0, 0($t0) 		# $t0 = ADR_DSPL	
+    li $t2, 0
+    left_wall:
+    	sw  $t1, 0($t0)
+    	addi $t0, $t0, 128	# Moving the display pixel to the next row
+    	addi $t2, $t2, 1
+    	blt $t2, 32, left_wall
+       
+    jr $ra
 # draw_ball() -> void
 #	draws the ball on the screen
 draw_ball:
