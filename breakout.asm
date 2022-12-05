@@ -5,7 +5,16 @@
 # Student 2: Leon Cai, 1007966523
 
 # Easy features implemented:
+
+#	Feature 1: Multiple lives
+#	Feature 2: Gave over screen and retry
+#	Feature 4: Pausing the game
+
 # Hard features implemented:
+
+#	Feature 1: Player score
+#	Feature 2: High score 
+
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       8
 # - Unit height in pixels:      8
