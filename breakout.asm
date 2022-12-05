@@ -53,15 +53,17 @@ PADDLE: # PADDLE for x value, PADDLE + 4 for y value
 ##############################################################################
 	.text
 	.globl main
+	.eqv LIVES 3
 
 	# Run the Brick Breaker game.
 main:
     li $s7, 0
     jal clear_screen
     jal draw_walls
-    jal draw_bricks
+    jal draw_bricks	
 
     setup_ball:
+        addi $s5, $s5, 1	# Adds 1 to total number of tries
     	li $t0, 16	
     	sw $t0, BALL 		#loads starting ball's x-value
     	li $t0, 20
@@ -814,6 +816,7 @@ terminate:
 	jal game_over_screen
 	
 	retry_loop:
+		beq $s5, LIVES, quit		 # Quit game if no lives left
 		lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
   		lw $t1, 0($t0)                  # Load first word from keyboard
     		beq $t1, 1, post_game_input     
