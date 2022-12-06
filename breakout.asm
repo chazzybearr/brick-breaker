@@ -62,33 +62,41 @@ PADDLE: # PADDLE for x value, PADDLE + 4 for y value
 ##############################################################################
 	.text
 	.globl main
-	.eqv LIVES 3
-
 	# Run the Brick Breaker game.
 main:
     li $s7, 0
+    li $s5, 3
     jal clear_screen
     jal draw_walls
     jal draw_bricks	
-
+    
+    retry_loop:
+    
     setup_ball:
-        addi $s5, $s5, 1	# Adds 1 to total number of tries
     	li $t0, 16	
     	sw $t0, BALL 		#loads starting ball's x-value
     	li $t0, 20
     	sw $t0, BALL + 4 	#loads starting ball's y-value
     	li $t0, 1
+    	and $t1, $s5, 1
+    	beq $t1, 1, odd_retry
+    	b even_retry
+    	odd_retry:
     	sw $t0, BALL + 8	#loads starting ball's direction (diagonal up + right)
+    	b setup_paddle
+    	even_retry:
+    	li $t0, 2 
+    	sw $t0, BALL + 8
     	
     setup_paddle: 		#draws the paddle
     	li $t0, 14	
     	sw $t0, PADDLE 		#loads starting paddle's x-value 
     	li $t0, 28
     	sw $t0, PADDLE + 4 	#loads starting paddle's y-value (constant)
-    	
+    jal draw_paddle
 game_loop:
 	jal too_late
-	beq $v0, 1, terminate # terminates the loop - before the setting of the loop variables
+	beq $v0, 1, next_round # terminates the loop - before the setting of the loop variables
 	
 	# setting up loop variables - useful to keep track of things within each loop between function calls
 	addi $sp, $sp, -12
@@ -169,7 +177,14 @@ game_loop:
 	lw $s0, 8($sp)
 	addi $sp, $sp, 12
    	b game_loop
-
+   	
+   next_round:
+   	jal clear_ball
+   	jal clear_paddle
+   	addi $s5, $s5, -1
+   	beqz $s5, terminate
+   	b retry_loop
+   
 # get_location_address(x, y) -> address
 #   Return the address of the unit on the display at location (x,y)
 #
@@ -197,7 +212,7 @@ draw_bricks:
     lw $t1, 0($t1)
     la $t0, MY_COLOURS
     seven_line_loop:	# draws seven lines
-	beq $t8, 7, setup_ball
+	beq $t8, 7, draw_brick_epi
 	lw $t2,0($t0)
         addi $t0,$t0, 4
 	add $t8, $t8, 1
@@ -214,7 +229,8 @@ draw_bricks:
     new_line: 		# goes to a new line
 	addi $t1, $t1, 8 	# sets display pixel to be second pixel of next line
 	b seven_line_loop
-	
+
+    draw_brick_epi:	
     jr $ra
 
 draw_walls:
@@ -250,6 +266,7 @@ draw_walls:
     	blt $t2, 32, left_wall
        
     jr $ra
+   
 # draw_ball() -> void
 #	draws the ball on the screen
 draw_ball:
@@ -267,6 +284,23 @@ draw_ball:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
+# clear_ball() -> void
+#	clears the ball on the screen
+clear_ball:
+	#PROLOGUE - SAVE RA in STACK
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+    	lw $a0, BALL 		#function parameter - ball's x-value
+    	lw $a1, BALL + 4 	#function parameter - ball's y-value
+    	jal get_location_address
+    	lw $t0, MY_COLOURS + 40
+    	sw $t0, ($v0)		#store white in address returned by function (the ball)
+	
+	#EPILOGUE - LOAD RA from STACK
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
 # draw_paddle() -> void
 #	draws the paddle on the screen	
 draw_paddle:
@@ -290,8 +324,35 @@ draw_paddle:
     	#EPILOGUE - LOAD RA from STACK
     	draw_paddle_epi:
 	lw $ra, 0($sp)
-	addi $sp, $sp, 4	
+	addi $sp, $sp, 4
+	jr $ra	
 
+# clear_paddle() -> void
+#	removes the paddle from the screen	
+clear_paddle:
+	#PROLOGUE - SAVE RA in STACK
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+    	lw $a0, PADDLE 		#function parameter - paddle's x-value
+    	lw $a1, PADDLE + 4 	#function parameter - paddle's y-value
+    	jal get_location_address
+    	lw $t0, MY_COLOURS + 40
+    	sw $t0, ($v0)		#store black in address returned by function
+    	li $t3, 0
+    	clear_paddle_loop:
+    		beq $t3, 4, clear_paddle_epi
+    		addi $v0, $v0, 4	#given address is the leftest pixel of the paddle, add 4 to move right
+    		sw $t0, ($v0)		#store gray
+    		addi $t3, $t3, 1	#loop 4 times (for paddle of length 4)
+    		b clear_paddle_loop
+    		
+    	#EPILOGUE - LOAD RA from STACK
+    	clear_paddle_epi:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
 # too_late() -> boolean
 # 	return 1 if the ball is below the paddle - 0 if not.
 too_late:
@@ -824,12 +885,6 @@ terminate:
 	jal clear_screen
 	jal game_over_screen
 	
-	retry_loop:
-		beq $s5, LIVES, quit		 # Quit game if no lives left
-		lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
-  		lw $t1, 0($t0)                  # Load first word from keyboard
-    		beq $t1, 1, post_game_input     
-		b retry_loop
 	post_game_input:
 		lw $t1, 4($t0)
 		beq $t1, 0x52, main
