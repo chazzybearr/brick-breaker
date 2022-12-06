@@ -3,6 +3,18 @@
 #
 # Student 1: Mani Setayesh, 1008078367
 # Student 2: Leon Cai, 1007966523
+
+# Easy features implemented:
+
+#	Feature 1: Multiple lives
+#	Feature 2: Gave over screen and retry
+#	Feature 4: Pausing the game
+
+# Hard features implemented:
+
+#	Feature 1: Player score
+#	Feature 2: High score 
+
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       8
 # - Unit height in pixels:      8
@@ -50,92 +62,47 @@ PADDLE: # PADDLE for x value, PADDLE + 4 for y value
 ##############################################################################
 	.text
 	.globl main
-
 	# Run the Brick Breaker game.
 main:
-    # Knowing where to write (top-left unit): ADR_DSPL
-    la $t1, ADDR_DSPL
-    lw $t2, 0($t1) 	# $t2 = ADR_DSPL
+    li $s7, 0
+    li $s5, 3
+    jal clear_screen
+    jal draw_walls
+    jal draw_bricks	
     
+    retry_loop:
     
-    
-    # Initializing the game walls
-    lw $t4, MY_COLOURS + 36  
- 
-     top_wall:
-    	sw  $t4, 0($t2)		# Displaying the pixel
-    	addi $t2, $t2, 4	# Moving the display pixel over by one unit
-    	addi $t5, $t5, 1	# Incrementing the counter
-    	blt $t5, 32, top_wall	# Loop if conditions not met
-    
-    lw $t2, 0($t1) 		# Resetting address display pixel
-    
-    left_wall:
-    	sw  $t4, 0($t2)
-    	addi $t2, $t2, 128	# Moving the display pixel to the next row
-    	addi $t6, $t6, 1
-    	blt $t6, 32, left_wall
-    
-    lw $t2, 0($t1) 
-    
-    right_wall:	
-    	sw  $t4, 252($t2)
-    	addi $t2, $t2, 128	# Moving the display pixel to the next row
-    	addi $t7, $t7, 1
-    	blt $t7, 32, right_wall
-
-
-
-    li $t2, 32
-    li $t3, 0
-    li $t8, 0
-    
-    lw $t1, 0($t1)
-    la $t0, MY_COLOURS
-    seven_line_loop:	# draws seven lines
-	beq $t8, 7, setup_ball
-	lw $t2,0($t0)
-        addi $t0,$t0, 4
-	add $t8, $t8, 1
-	li $t9, 0
-	
-    # Each line is 32 units -> 32 times drawing a line
-    draw_line_loop:	# draws one line
-    	bge $t9, 30, new_line	# 32 total pixels per row - 2 edge walls
-    	sw  $t2, 132($t1)	# 132 - starts drawing at second row second pixel
-    	addi $t1, $t1, 4
-    	addi $t9, $t9, 1
-    	b draw_line_loop
-    
-    new_line: 		# goes to a new line
-	addi $t1, $t1, 8 	# sets display pixel to be second pixel of next line
-	b seven_line_loop
-	
     setup_ball:
     	li $t0, 16	
     	sw $t0, BALL 		#loads starting ball's x-value
     	li $t0, 20
     	sw $t0, BALL + 4 	#loads starting ball's y-value
     	li $t0, 1
+    	and $t1, $s5, 1
+    	beq $t1, 1, odd_retry
+    	b even_retry
+    	odd_retry:
     	sw $t0, BALL + 8	#loads starting ball's direction (diagonal up + right)
+    	b setup_paddle
+    	even_retry:
+    	li $t0, 2 
+    	sw $t0, BALL + 8
     	
     setup_paddle: 		#draws the paddle
     	li $t0, 14	
     	sw $t0, PADDLE 		#loads starting paddle's x-value 
     	li $t0, 28
     	sw $t0, PADDLE + 4 	#loads starting paddle's y-value (constant)
-    	
+    jal draw_paddle
 game_loop:
 	jal too_late
-	beq $v0, 1, terminate # terminates the loop - before the setting of the loop variables
+	beq $v0, 1, next_round # terminates the loop - before the setting of the loop variables
 	
 	# setting up loop variables - useful to keep track of things within each loop between function calls
-	addi $sp, $sp, -20
-	sw $s0, 16($sp)
-	sw $s1, 12($sp)
-	sw $s2, 8($sp)
-	sw $s3, 4($sp)
-	sw $s4, 0($sp)
+	addi $sp, $sp, -12
+	sw $s0, 8($sp)
+	sw $s1, 4($sp)
+	sw $s2, 0($sp)
 
 	# 1a. Check if key has been pressed 
 	lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
@@ -144,12 +111,16 @@ game_loop:
 	b collisions
 	
 	keyboard_input:
-    	# 1b. Check which key has been pressed
+    	# 1b. Check which key has been pressed (supports caps-lock)
     	lw $a0, 4($t0)                  # Load second word from keyboard
     	beq $a0, 0x61, m_left
+    	beq $a0, 0x41, m_left
     	beq $a0, 0x64, m_right
-    	beq $a0 0x070, pause		# User pressed p on keyboard
+    	beq $a0, 0x44, m_right
+    	beq $a0  0x70, pause		# User pressed p on keyboard
+    	beq $a0  0x50, pause
     	beq $a0, 0x71, terminate
+    	beq $a0, 0x51, terminate
     	b collisions
     	
     	pause:
@@ -157,10 +128,9 @@ game_loop:
     		lw $t8, 0($t0)
     		beq $t8, 0, pause 	# Loading first word from keyboard and checking if there is no keyboard press
     		lw $t8, 4($t0)		# Loading the key from keyboard
-    		bne $t8, 0x70, pause	# Keep looping if key is not p
-    		b game_loop		# Resume game
-    		
-    	
+    		beq $t8, 0x50, collisions
+    		beq $t8, 0x70, collisions	# Keep looping if key is not p
+    		b pause		# Resume game
     	m_left: 
     		jal pad_left
     		b collisions
@@ -179,9 +149,14 @@ game_loop:
     	addi $s1, $v0, 0
     	jal brick_collision
     	addi $s2, $v0, 0
+    	beq $v0, 1, add_score
+    	b no_score
+    	add_score: addi $s7, $s7, 1
+    	no_score:
     	addi $a0, $s2, 0
     	jal brick_destroyer
     	
+    	# update the direction of the ball accordingly. Then move the ball.
     	addi $a0, $s0, 0
     	addi $a1, $s1, 0
     	addi $a2, $s2, 0
@@ -197,14 +172,19 @@ game_loop:
 	syscall
 
     #5. Go back to 1
-    	lw $s4, 0($sp)
-    	lw $s3, 4($sp)
-	lw $s2, 8($sp)
-	lw $s0, 12($sp)
-	lw $s1, 16($sp)
-	addi $sp, $sp, 20
+	lw $s2, 0($sp)
+	lw $s1, 4($sp)
+	lw $s0, 8($sp)
+	addi $sp, $sp, 12
    	b game_loop
-
+   	
+   next_round:
+   	jal clear_ball
+   	jal clear_paddle
+   	addi $s5, $s5, -1
+   	beqz $s5, terminate
+   	b retry_loop
+   
 # get_location_address(x, y) -> address
 #   Return the address of the unit on the display at location (x,y)
 #
@@ -224,6 +204,69 @@ get_location_address:
 
     	jr $ra
 
+draw_bricks:
+	li $t2, 32
+    li $t3, 0
+    li $t8, 0
+    la $t1, ADDR_DSPL
+    lw $t1, 0($t1)
+    la $t0, MY_COLOURS
+    seven_line_loop:	# draws seven lines
+	beq $t8, 7, draw_brick_epi
+	lw $t2,0($t0)
+        addi $t0,$t0, 4
+	add $t8, $t8, 1
+	li $t9, 0
+	
+    # Each line is 32 units -> 32 times drawing a line
+    draw_line_loop:	# draws one line
+    	bge $t9, 30, new_line	# 32 total pixels per row - 2 edge walls
+    	sw  $t2, 132($t1)	# 132 - starts drawing at second row second pixel
+    	addi $t1, $t1, 4
+    	addi $t9, $t9, 1
+    	b draw_line_loop
+    
+    new_line: 		# goes to a new line
+	addi $t1, $t1, 8 	# sets display pixel to be second pixel of next line
+	b seven_line_loop
+
+    draw_brick_epi:	
+    jr $ra
+
+draw_walls:
+    # Knowing where to write (top-left unit): ADR_DSPL
+    la $t0, ADDR_DSPL
+    lw $t0, 0($t0) 	# $t2 = ADR_DSPL
+    # Initializing the game walls
+    lw $t1, MY_COLOURS + 36  
+    
+    li $t2, 0
+     top_wall:
+    	sw  $t1, 0($t0)		# Displaying the pixel
+    	addi $t0, $t0, 4	# Moving the display pixel over by one unit
+    	addi $t2, $t2, 1	# Incrementing the counter
+    	blt $t2, 32, top_wall	# Loop if conditions not met
+    
+    la $t0, ADDR_DSPL		# Resetting address display pixel
+    lw $t0, 0($t0) 		# $t0 = ADR_DSPL
+    li $t2, 0
+    right_wall:	
+    	sw  $t1, 252($t0)
+    	addi $t0, $t0, 128 	# Moving the display pixel to the next row
+    	addi $t2, $t2, 1
+    	blt $t2, 32, right_wall
+
+    la $t0, ADDR_DSPL		# Resetting address display pixel
+    lw $t0, 0($t0) 		# $t0 = ADR_DSPL	
+    li $t2, 0
+    left_wall:
+    	sw  $t1, 0($t0)
+    	addi $t0, $t0, 128	# Moving the display pixel to the next row
+    	addi $t2, $t2, 1
+    	blt $t2, 32, left_wall
+       
+    jr $ra
+   
 # draw_ball() -> void
 #	draws the ball on the screen
 draw_ball:
@@ -241,6 +284,23 @@ draw_ball:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 
+# clear_ball() -> void
+#	clears the ball on the screen
+clear_ball:
+	#PROLOGUE - SAVE RA in STACK
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+    	lw $a0, BALL 		#function parameter - ball's x-value
+    	lw $a1, BALL + 4 	#function parameter - ball's y-value
+    	jal get_location_address
+    	lw $t0, MY_COLOURS + 40
+    	sw $t0, ($v0)		#store white in address returned by function (the ball)
+	
+	#EPILOGUE - LOAD RA from STACK
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
 # draw_paddle() -> void
 #	draws the paddle on the screen	
 draw_paddle:
@@ -264,8 +324,35 @@ draw_paddle:
     	#EPILOGUE - LOAD RA from STACK
     	draw_paddle_epi:
 	lw $ra, 0($sp)
-	addi $sp, $sp, 4	
+	addi $sp, $sp, 4
+	jr $ra	
 
+# clear_paddle() -> void
+#	removes the paddle from the screen	
+clear_paddle:
+	#PROLOGUE - SAVE RA in STACK
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+    	lw $a0, PADDLE 		#function parameter - paddle's x-value
+    	lw $a1, PADDLE + 4 	#function parameter - paddle's y-value
+    	jal get_location_address
+    	lw $t0, MY_COLOURS + 40
+    	sw $t0, ($v0)		#store black in address returned by function
+    	li $t3, 0
+    	clear_paddle_loop:
+    		beq $t3, 4, clear_paddle_epi
+    		addi $v0, $v0, 4	#given address is the leftest pixel of the paddle, add 4 to move right
+    		sw $t0, ($v0)		#store gray
+    		addi $t3, $t3, 1	#loop 4 times (for paddle of length 4)
+    		b clear_paddle_loop
+    		
+    	#EPILOGUE - LOAD RA from STACK
+    	clear_paddle_epi:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
 # too_late() -> boolean
 # 	return 1 if the ball is below the paddle - 0 if not.
 too_late:
@@ -368,6 +455,8 @@ wall_collision:
 	collide_epilogue:
 	jr $ra
 
+#next_ball_loc() -> (int x, int y)
+#	return the next location of the ball - (x,y) coordinates
 next_ball_loc:
 	lw $t0, BALL + 8
 	beq $t0, 2, u_l
@@ -400,29 +489,31 @@ next_ball_loc:
     	next_loc_epi:
     	jr $ra,
 
+# brick_destroyer(boolean: brick_collision) -> void
+#	 if the boolean is true, then destroy the brick that is in the next location of the ball
 brick_destroyer:
 	addi $sp,$sp, -12
 	sw $s1, 8($sp)
 	sw $s0, 4($sp)
 	sw $ra, 0($sp)
-	beq $a0, 0, destroyer_epi
+	beq $a0, 0, destroyer_epi #Check the input boolean for collision actually occuring
 	jal next_ball_loc
-	addi $s0, $v0, 0 # x-value
-	addi $s1, $v1, 0 # y-value
-	addi $a0, $v0, 0 # x-value
-	addi $a1, $v1, 0 # y-value
-	jal get_location_address
+	addi $s0, $v0, 0
+	addi $s1, $v1, 0 
+	addi $a0, $v0, 0
+	addi $a1, $v1, 0
+	jal get_location_address #get ball's next location
 	lw $t0, MY_COLOURS + 40
 	sw $t0, ($v0)
 	and $t0, $s1, 1
-	beq $t0, 1, odd_line
+	beq $t0, 1, odd_line # check if the next location is on an even/odd value of "y"
 	b even_line
-	odd_line:
+	odd_line: # if odd, store black in the ball's next location and the pixel right to it
 		addi $v0, $v0, 4
 		lw $t0, MY_COLOURS + 40
 		sw $t0, ($v0)
 		b destroyer_epi
-	even_line:
+	even_line: # if even, store black in the ball's next location and the pixel left to it
 		addi $v0, $v0, -4
 		lw $t0, MY_COLOURS + 40
 		sw $t0, ($v0)
@@ -432,50 +523,63 @@ brick_destroyer:
 	lw $s1, 8($sp)
 	addi $sp,$sp,12
 	jr $ra
-	
+
+# brick_collision() -> boolean:collides
+#	return 1 if ball collides with "a colour". 0 otherwise
 brick_collision:
 	addi $sp,$sp, -4
 	sw $ra, 0($sp)
 	
+	#get the ball's next location, assume collision occurs
 	lw $t0, BALL + 8
-	li $v0, 1
+
 	jal next_ball_loc
 	addi $a0, $v0, 0
 	addi $a1, $v1, 0
-	jal get_location_address
-	lw $t1, MY_COLOURS + 40
+	jal get_location_address #get the address of the next location
+	lw $t1, MY_COLOURS + 40 
 	lw $t2, MY_COLOURS + 36
 	lw $t3, ($v0)
+	li $v0, 1
+	#check if the next location has a colour other than black/gray
 	beq $t3, $t1, no_brick_coll
 	beq $t3, $t2, no_brick_coll
 	b brick_coll_epi
-	no_brick_coll:
+	no_brick_coll: # if no collision, update value to 0
 		li $v0, 0	
 	brick_coll_epi:
 	lw $ra, 0($sp)
 	addi $sp,$sp,4
 	jr $ra
-# new_dir(hit_pad, hit_wall) -> new_dir
+	
+# new_dir(hit_pad, hit_wall, hit_brick) -> new_dir
 #	takes in whether the ball had any collisions, and provides a new direction based on the collision
 
 new_dir:
+	# Load the ball's direction, check for which collision that occured based on the inputs (paddle first)
 	lw $t0, BALL + 8
     	beq $a0, 1, hit_paddle
     	bgtz $a1, hit_wall
     	bgtz, $a2, hit_brick
+    	
+    	# No collision - jump to end
     	b new_dir_epi
+    	
 	hit_paddle:
+		#compare the direction of the ball, change accordingly
 		beq $t0, 4, l_to_r
 		li $t0, 2
 		b hit_pad_epi
 		l_to_r:
 			li $t0, 1
+		# store new direction, check for other collisions (brick/wall)
 		hit_pad_epi:
 			sw $t0, BALL + 8
 			bgtz $a1, hit_wall
 			bgtz $a2, hit_brick
 			b new_dir_epi
 	hit_wall:
+		#compare the direction of the ball, change accordingly
 		beq $a1, 2, right_side
 		beq $a1, 3, left_side
 		beq $a1, 4, t_corner
@@ -504,10 +608,14 @@ new_dir:
 			b hit_wall_epi
 			l_corn: li $t0, 4
 			b hit_wall_epi
+		# store new direction, check for other collisions (brick/wall)
 		hit_wall_epi:
+			sw $t0, BALL + 8
 			bgtz $a2, hit_brick
 			b new_dir_epi
+	
 	hit_brick:
+		#compare the direction of the ball, change accordingly
 		li $a2, 0
 		beq $t0, 1, brick_ur
 		beq $t0, 2, brick_ul
@@ -590,15 +698,16 @@ pad_right:
 	sw $ra, 0($sp)
 	
 	#BODY
-	lw $t0, MY_COLOURS + 40
-	lw $t1, MY_COLOURS + 36
+
     	lw $a0, PADDLE 		#function parameter - paddle's x-value
     	lw $a1, PADDLE + 4	#function parameter - paddle's y-value
     	addi $t2, $a0, 6
     	bge $t2, 32, pad_right_epi
     	addi $t2, $a0, 1
     	sw $t2, PADDLE		#store x + 1 in paddle's x-value
-    	jal get_location_address
+    	jal get_location_address	
+    	lw $t0, MY_COLOURS + 40
+	lw $t1, MY_COLOURS + 36
     	sw $t0, ($v0)		#store black in the former left-est pixel
     	sw $t1, 20($v0)		#store gray in the new right-est pixel
     	
@@ -607,7 +716,491 @@ pad_right:
     	lw $ra, 0($sp)
     	addi $sp,$sp, 4
     	jr $ra
-    	
+
+# clear_screen()-> void
+#	store black in all pixels (clean the screen)
+clear_screen:
+	#load top-left pixel, the colour black, and set loop variable to 0
+	la $t0, ADDR_DSPL
+	lw $t0, 0($t0)
+	li $t1, 0
+	lw $t2, MY_COLOURS + 40
+	
+	#store black in address, add to address by 4, increment loop variable until all pixels are black
+	clean_loop: 
+	beq $t1, 1024, clear_screen_epi
+	sw $t2, ($t0)
+	addi $t0, $t0, 4
+	addi $t1, $t1, 1
+	b clean_loop
+	
+	clear_screen_epi:
+	jr $ra
+
+game_over_screen:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	jal draw_score
+	li $a0, 6
+	li $a1, 2
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)		
+	sw $t0, 12($v0)	
+	sw $t0, 20($v0)
+	sw $t0, 24($v0)
+	sw $t0, 28($v0)
+	sw $t0, 32($v0)
+	sw $t0, 40($v0)
+	sw $t0, 56($v0)
+	sw $t0, 64($v0)
+	sw $t0, 68($v0)
+	sw $t0, 72($v0)
+	sw $t0, 76($v0)
+	sw $t0, 128($v0)
+	sw $t0, 148($v0)
+	sw $t0, 160($v0)
+	sw $t0, 168($v0)
+	sw $t0, 172($v0)
+	sw $t0, 180($v0)
+	sw $t0, 184($v0)		
+	sw $t0, 192($v0)
+	sw $t0, 256($v0)
+	sw $t0, 264($v0)
+	sw $t0, 268($v0)
+	sw $t0, 276($v0)
+	sw $t0, 280($v0)
+	sw $t0, 284($v0)
+	sw $t0, 288($v0)
+	sw $t0, 296($v0)
+	sw $t0, 304($v0)
+	sw $t0, 312($v0)
+	sw $t0, 320($v0)
+	sw $t0, 324($v0)
+	sw $t0, 328($v0)
+	sw $t0, 384($v0)
+	sw $t0, 396($v0)
+	sw $t0, 404($v0)
+	sw $t0, 416($v0)
+	sw $t0, 424($v0)	
+	sw $t0, 440($v0)
+	sw $t0, 448($v0)
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)
+	sw $t0, 524($v0)
+	sw $t0, 532($v0)
+	sw $t0, 544($v0)
+	sw $t0, 552($v0)
+	sw $t0, 568($v0)
+	sw $t0, 576($v0)	
+	sw $t0, 580($v0)
+	sw $t0, 584($v0)
+	sw $t0, 588($v0)
+	sw $t0, 768($v0)
+	sw $t0, 772($v0)
+	sw $t0, 776($v0)
+	sw $t0, 780($v0)
+	sw $t0, 788($v0)
+	sw $t0, 804($v0)
+	sw $t0, 812($v0)
+	sw $t0, 816($v0)	
+	sw $t0, 820($v0)
+	sw $t0, 824($v0)
+	sw $t0, 832($v0)
+	sw $t0, 836($v0)
+	sw $t0, 840($v0)
+	sw $t0, 844($v0)
+	sw $t0, 896($v0)
+	sw $t0, 908($v0)
+	sw $t0, 916($v0)
+	sw $t0, 932($v0)
+	sw $t0, 940($v0)	
+	sw $t0, 960($v0)
+	sw $t0, 972($v0)
+	sw $t0, 1024($v0)
+	sw $t0, 1036($v0)
+	sw $t0, 1044($v0)
+	sw $t0, 1048($v0)
+	sw $t0, 1056($v0)
+	sw $t0, 1060($v0)
+	sw $t0, 1068($v0)
+	sw $t0, 1072($v0)	
+	sw $t0, 1076($v0)
+	sw $t0, 1088($v0)
+	sw $t0, 1092($v0)
+	sw $t0, 1096($v0)
+	sw $t0, 1100($v0)
+	sw $t0, 1152($v0)
+	sw $t0, 1164($v0)
+	sw $t0, 1176($v0)
+	sw $t0, 1180($v0)
+	sw $t0, 1184($v0)
+	sw $t0, 1196($v0)	
+	sw $t0, 1216($v0)
+	sw $t0, 1224($v0)
+	sw $t0, 1280($v0)
+	sw $t0, 1284($v0)
+	sw $t0, 1288($v0)
+	sw $t0, 1292($v0)
+	sw $t0, 1308($v0)
+	sw $t0, 1324($v0)
+	sw $t0, 1328($v0)
+	sw $t0, 1332($v0)
+	sw $t0, 1336($v0)	
+	sw $t0, 1344($v0)
+	sw $t0, 1356($v0)
+	
+	li $a0, 6
+	li $a1, 18
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, 0($v0)
+	sw $t0, 8($v0)
+	sw $t0, 16($v0)
+	sw $t0, 128($v0)
+	sw $t0, 136($v0)
+	sw $t0, 144($v0)
+	sw $t0, 152($v0)
+	sw $t0, 256($v0)
+	sw $t0, 260($v0)
+	sw $t0, 264($v0)
+	sw $t0, 272($v0)
+	sw $t0, 384($v0)
+	sw $t0, 392($v0)
+	sw $t0, 400($v0)
+	sw $t0, 408($v0)
+	sw $t0, 512($v0)
+	sw $t0, 520($v0)
+	sw $t0, 528($v0)
+	
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
 terminate:
+	jal clear_screen
+	jal game_over_screen
+	
+	post_game_input:
+		lw $t0, ADDR_KBRD
+		lw $t8, 0($t0) 
+		bne $t8, 1, post_game_input
+		lw $t1, 4($t0)
+		beq $t1, 0x52, main
+		beq $t1, 0x72, main
+		beq $t1, 0x51, quit
+		beq $t1, 0x71, quit 
+		b post_game_input
+	quit:
 	li $v0, 10 # terminate the program gracefully 
 	syscall
+
+
+draw_score:
+	addi $sp, $sp, -12
+	sw $s1, 8($sp)
+	sw $s0, 4($sp)
+	sw $ra, 0($sp)
+	
+	bge $s7, $s6, new_high
+	b high_else
+	new_high:
+	addi $s6, $s7, 0
+	high_else:
+	
+	draw_hundreds:
+		li $t0, 100
+		div $s7, $t0
+		mflo $a2
+		mfhi $s1
+		li $a0, 12
+		li $a1, 24
+		jal number_assigner
+		li $t0, 100
+		div $s6, $t0
+		mflo $a2
+		mfhi $s0
+		li $a0, 14
+		li $a1, 18
+		jal number_assigner
+	draw_tens:
+		li $t0, 10
+		div $s1, $t0
+		mflo $a2
+		mfhi $s1
+		li $a0, 16
+		li $a1, 24
+		jal number_assigner
+		li $t0, 10
+		div $s0, $t0
+		mflo $a2
+		mfhi $s0
+		li $a0, 18
+		li $a1, 18
+		jal number_assigner
+	draw_ones:
+		li $t0, 1
+		div $s1, $t0
+		mflo $a2
+		li $a0, 20
+		li $a1, 24
+		jal number_assigner
+		li $t0, 1
+		div $s0, $t0
+		mflo $a2
+		li $a0, 22
+		li $a1, 18
+		jal number_assigner
+	
+	lw $ra, 0($sp)
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	addi $sp, $sp, 12
+	jr $ra
+
+number_assigner:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	beq $a2, 1, one
+	beq $a2, 2, two
+	beq $a2, 3, three
+	beq $a2, 4, four
+	beq $a2, 5, five
+	beq $a2, 6, six
+	beq $a2, 7, seven
+	beq $a2, 8, eight
+	beq $a2, 9, nine
+	zero: jal draw_0
+		b na_epi
+	one: jal draw_1
+		b na_epi
+	two: jal draw_2
+		b na_epi
+	three: jal draw_3
+		b na_epi
+	four: jal draw_4
+		b na_epi
+	five: jal draw_5
+		b na_epi
+	six: jal draw_6
+		b na_epi
+	seven: jal draw_7
+		b na_epi
+	eight: jal draw_8
+		b na_epi
+	nine: jal draw_9
+		b na_epi
+	
+	na_epi:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
+#draw_0(x,y) -> void
+# draws a 0, starting from the top right position
+draw_0:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 128($v0)
+	sw $t0, 136($v0)
+	sw $t0, 256($v0)	
+	sw $t0, 264($v0)
+	sw $t0, 384($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
+#draw_1(x,y) -> void
+# draws a 1, starting from the top right position
+draw_1:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, 4($v0)
+	sw $t0, 132($v0)
+	sw $t0, 260($v0)	
+	sw $t0, 388($v0)
+	sw $t0, 516($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_2(x,y) -> void
+# draws a 2, starting from the top right position
+draw_2:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 136($v0)
+	sw $t0, 256($v0)
+	sw $t0, 260($v0)	
+	sw $t0, 264($v0)
+	sw $t0, 384($v0)
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_3(x,y) -> void
+# draws a 3, starting from the top right position
+draw_3:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 136($v0)
+	sw $t0, 260($v0)	
+	sw $t0, 264($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_4(x,y) -> void
+# draws a 4, starting from the top right position
+draw_4:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 8($v0)
+	sw $t0, 128($v0)
+	sw $t0, 136($v0)
+	sw $t0, 256($v0)
+	sw $t0, 260($v0)		
+	sw $t0, 264($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_5(x,y) -> void
+# draws a 5, starting from the top right position
+draw_5:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 128($v0)
+	sw $t0, 256($v0)	
+	sw $t0, 260($v0)	
+	sw $t0, 264($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	#draw_6(x,y) -> void
+# draws a 6, starting from the top right position
+draw_6:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 128($v0)
+	sw $t0, 256($v0)
+	sw $t0, 260($v0)	
+	sw $t0, 264($v0)
+	sw $t0, 384($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_7(x,y) -> void
+# draws a 7, starting from the top right position
+draw_7:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 136($v0)
+	sw $t0, 260($v0)	
+	sw $t0, 384($v0)	
+	sw $t0, 512($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_8(x,y) -> void
+# draws a 8, starting from the top right position
+draw_8:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 128($v0)
+	sw $t0, 136($v0)
+	sw $t0, 256($v0)
+	sw $t0, 260($v0)		
+	sw $t0, 264($v0)
+	sw $t0, 384($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+#draw_9(x,y) -> void
+# draws a 9, starting from the top right position
+draw_9:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal get_location_address
+	lw $t0, MY_COLOURS + 32
+	sw $t0, ($v0)
+	sw $t0, 4($v0)
+	sw $t0, 8($v0)
+	sw $t0, 128($v0)
+	sw $t0, 136($v0)
+	sw $t0, 256($v0)
+	sw $t0, 260($v0)		
+	sw $t0, 264($v0)
+	sw $t0, 392($v0)	
+	sw $t0, 512($v0)
+	sw $t0, 516($v0)
+	sw $t0, 520($v0)		
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
