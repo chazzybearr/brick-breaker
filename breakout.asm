@@ -886,11 +886,15 @@ terminate:
 	jal game_over_screen
 	
 	post_game_input:
+		lw $t0, ADDR_KBRD
+		lw $t8, 0($t0) 
+		bne $t8, 1, post_game_input
 		lw $t1, 4($t0)
 		beq $t1, 0x52, main
 		beq $t1, 0x72, main
 		beq $t1, 0x51, quit
 		beq $t1, 0x71, quit 
+		b post_game_input
 	quit:
 	li $v0, 10 # terminate the program gracefully 
 	syscall
